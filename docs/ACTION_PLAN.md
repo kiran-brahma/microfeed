@@ -102,6 +102,12 @@ Do top-to-bottom. Deps in parens must be merged first.
 ## Definition of done (whole project)
 Registry owns all types; add-a-type = one file. Complete CRUD (create/update/soft-delete/restore/purge/bulk) with strict validation. Tags + galleries + landing pages work. Every type has a modern public page + appears in JSON; podcast + blog have RSS. All SQL parameterized. Tests green, CI gates deploys.
 
+## Branch & deploy workflow
+- All rebuild work lives on branch **`rebuild/cms`**. `main` stays clean + deployable.
+- Deploy triggers **only** on push to `main` → so `rebuild/cms` never deploys. Commit/push freely there.
+- Do NOT merge to `main` until the full v1 check passes (all 37 tasks green + reviewed).
+- **Cutover task (before/at merge):** the live D1 already has an old `items` table; `init.sql` is `CREATE TABLE IF NOT EXISTS`, so it will NOT add `content_type`/`slug` to the existing table and the new unique index errors on the missing columns. Since the DB is **blank**, reset it at cutover — drop the `items` table (or delete+recreate the D1) so `init.sql` rebuilds it fresh with the new schema. (Longer term: add real `ALTER TABLE` migrations; `IF NOT EXISTS` never migrates an existing table.)
+
 ## Guardrails
 - Issues target the **fork** `kiran-brahma/microfeed`, not upstream `microfeed/microfeed`.
 - Agent must **stop and ask** if anything is genuinely undecided — never assume.
