@@ -55,10 +55,12 @@ Do top-to-bottom. Deps in parens must be merged first.
 
 **Phase 1 complete.** Data layer: QueryBuilder (injection-safe) + Repositories + Paginator; FeedDb hand-built SQL retired; harness enforces D1's async contract.
 
-### Phase 2 — Content Type registry (#4)  · needs Phase 1
-- [ ] 2.1 Field-kind primitives (validate/map, pure)
-- [ ] 2.2 ContentTypeRegistry — declare 5 types (2.1)
-- [ ] 2.3 Data-driven item mapper + validator (2.1, 2.2)
+### Phase 2 — Content Type registry (#4)  · needs Phase 1 ✅ done + reviewed
+- [x] 2.1 Field-kind primitives (validate/map, pure) ✅
+- [x] 2.2 ContentTypeRegistry — declare 5 types (2.1) ✅ catalog corrected in review (see below)
+- [x] 2.3 Data-driven item mapper + validator (2.1, 2.2) ✅
+
+**Phase 2 review notes:** first pass drifted from spec (agent was offline, inferred from old editor). Corrected in review: podcast `url→link` + `content_html→description` targets (were wrong, untested); added blog `author`/`excerpt`, photo `caption`/`taken_date`; dropped extraneous `url` from non-podcast types. Added tests for the podcast mapping. Authoritative catalog now in [docs/CONTENT_TYPES.md](CONTENT_TYPES.md) so offline sessions don't re-drift.
 
 ### Phase 3 — CRUD seam (#5)  · needs Phases 1–2
 - [ ] 3.1 ContentService create/update + strict validation
