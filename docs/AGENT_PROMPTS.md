@@ -39,6 +39,10 @@ Copy-paste one block per task into a fresh Sonnet session. One task = one sessio
 ### 1.4 — Retire FeedDb internals (needs 1.3)
 > Implement task 1.4 in issue #3. Rewire existing callers (getContent/putContent/feed reads) to the repositories; remove the hand-built SQL/query-DSL from `FeedDb`. Tests-first: existing feed read/write paths still pass (add handler-level tests if missing). No unparameterized SQL remains. Shared rules apply.
 
+### 1.4b — Async-D1 fix (BLOCKING — review finding)
+> Fix a production-breaking bug in the Phase 1 data layer. Cloudflare D1 statement methods `.all()`, `.first()`, `.run()` and `db.batch()` all return Promises, but `BaseRepo`, `ItemRepo`, and `FeedDb` call them synchronously (e.g. `BaseRepo.list()` returns `.all()` unawaited; `FeedDb.getContent` does `this.channelRepo.getPrimaryPublished()` and `this.settingsRepo.listAll().results` with no await). Tests pass only because the better-sqlite3 D1-substitute's `run/all/first` are synchronous — masking the missing awaits.
+> Tests-first: (1) in `test-utils/d1-substitute.js` make `run()`, `all()`, and `first()` `async` (return Promises) so the double matches D1; run the suite and confirm it goes RED where awaits are missing. (2) Then make every consumer correct: `BaseRepo` methods (`list`, `getFirst`, `getById`, `insert`, `update`, `upsert`) `async` + `await` the statement call; `ItemRepo.listPaginated` `async` + `await` its `list`; `FeedDb.getContent`, `_getContent`, `_putChannelToContent`, `_updateOrAddSetting`, `_putItemToContent`, `getPrimaryPublished`/`listAll` call sites — add `await` everywhere a repo/statement is used. Update Paginator only if it touches statement results (it takes plain rows, so likely unchanged). Green the suite. Do NOT weaken the harness back to sync. Shared rules apply.
+
 ---
 
 ## Phase 2 — Content Type registry (issue #4, needs Phase 1)

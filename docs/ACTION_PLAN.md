@@ -35,16 +35,25 @@ Full decisions live in issue #1. Don't re-decide — it's settled.
 
 Do top-to-bottom. Deps in parens must be merged first.
 
-### Phase 0 — Foundations & test harness (#2)
-- [ ] 0.1 Schema migration (items +content_type/+slug; tags, item_tags, item_relations)
-- [ ] 0.2 better-sqlite3 D1-substitute test harness (0.1)
-- [ ] 0.3 CI test gate before deploy (0.2)
+### Phase 0 — Foundations & test harness (#2) ✅ done + reviewed
+- [x] 0.1 Schema migration (items +content_type/+slug; tags, item_tags, item_relations)
+- [x] 0.2 better-sqlite3 D1-substitute test harness (0.1)
+- [x] 0.3 CI test gate before deploy (0.2)
+
+**Phase 0 review notes (carry forward):**
+- Actual `item_relations` columns are `parent_item_id` / `child_item_id` (not `parent_id`/`child_id`). Phase 3.3 + 4.3 must use these names.
+- `item_relations` has `UNIQUE(parent_item_id, rel_type, position)`. Phase 4.3 reorder must run in a transaction and avoid transient position collisions (e.g. offset positions or clear+reinsert), else the unique index aborts the update.
+- Harness `batch()` is now atomic (transaction-wrapped) to match D1 — 3.4/3.3 atomicity tests are meaningful.
+- Purge (3.3) still deletes tag/relation links explicitly; do not rely solely on FK cascade (D1 FK enforcement is not guaranteed).
 
 ### Phase 1 — Data layer split (#3)  · needs Phase 0
-- [ ] 1.1 QueryBuilder — pure, parameterized, injection-safe
-- [ ] 1.2 Paginator — pure cursor logic (1.1)
-- [ ] 1.3 Repositories: Item/Channel/Settings (1.1, 1.2)
-- [ ] 1.4 Retire FeedDb SQL internals (1.3)
+- [x] 1.1 QueryBuilder — pure, parameterized, injection-safe ✅ reviewed (SELECT-only; 1.3 repos build parameterized INSERT/UPDATE/UPSERT separately)
+- [x] 1.2 Paginator — pure cursor logic (1.1) ✅ reviewed
+- [x] 1.3 Repositories: Item/Channel/Settings (1.1, 1.2) ✅ reviewed
+- [x] 1.4 Retire FeedDb SQL internals (1.3) ✅ reviewed
+- [x] **1.4b Async-D1 fix** ✅ harness now async+transactional (matches D1); all repo/FeedDb paths await. Missing-`await` class now caught by the double, not hidden.
+
+**Phase 1 complete.** Data layer: QueryBuilder (injection-safe) + Repositories + Paginator; FeedDb hand-built SQL retired; harness enforces D1's async contract.
 
 ### Phase 2 — Content Type registry (#4)  · needs Phase 1
 - [ ] 2.1 Field-kind primitives (validate/map, pure)
