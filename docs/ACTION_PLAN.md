@@ -69,7 +69,9 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 3.2 Soft delete + restore (3.1) ✅ reviewed
 - [x] 3.3 Hard purge + R2 media cleanup (3.2) ✅ reviewed (fixed MediaStore double-prefix R2-key bug in review)
 - [x] 3.4 Bulk operations (3.1) ✅ reviewed (publish/unpublish/delete/tag, per-id outcome, transactional; tag-existence validation deferred to Phase 4)
-- [ ] 3.5 Type-aware API handlers (3.1–3.4)
+- [x] 3.5 Type-aware API handlers (3.1–3.4) ✅ reviewed (POST/PUT/DELETE/restore/purge/bulk via ContentService, structured errors, GET untouched; +jest .html mock infra)
+
+**Phase 3 complete** — full CRUD seam: typed create/update, soft-delete+restore, purge+R2, bulk, all behind validated HTTP handlers.
 
 ### Phase 4 — Taxonomy & relations (#6)  · needs Phases 1,3
 - [ ] 4.1 TagRepo + tag CRUD
