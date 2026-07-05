@@ -74,7 +74,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 **Phase 3 complete** — full CRUD seam: typed create/update, soft-delete+restore, purge+R2, bulk, all behind validated HTTP handlers.
 
 ### Phase 4 — Taxonomy & relations (#6)  · needs Phases 1,3
-- [ ] 4.1 TagRepo + tag CRUD
+- [x] 4.1 TagRepo + tag CRUD ✅ reviewed
 - [ ] 4.2 Item↔tag linking + tags field kind wiring (4.1)
 - [ ] 4.3 Ordered gallery membership + reference field kind (4.2)
 - [ ] 4.4 Aggregation resolver (gallery + landing) (4.2, 4.3)
