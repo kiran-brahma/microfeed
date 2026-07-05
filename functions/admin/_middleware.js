@@ -21,10 +21,6 @@ async function fetchFeed({request, next, env, data}) {
     if (!urlObj.pathname.startsWith(urlJoin(ADMIN_URLS.home(), '/items/new'))) {
       return next();
     }
-  } else if (urlObj.pathname.startsWith(urlJoin(ADMIN_URLS.home(), '/settings/code-editor'))) {
-    fetchItems = getFetchItemsParams(request, {
-      'status__!=': STATUSES.DELETED,
-    }, 1);
   }
 
   const feedDb = new FeedDb(env, request);

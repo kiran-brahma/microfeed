@@ -238,7 +238,6 @@ export const ADMIN_URLS = {
   newItem: (baseUrl = '/') => urlJoin(baseUrl, `${ADMIN_HOME}/items/new/`),
   allItems: () => `${ADMIN_HOME}/items/list/`,
   settings: () => `${ADMIN_HOME}/settings/`,
-  codeEditorSettings: () => `${ADMIN_HOME}/settings/code-editor/`,
   logout: () => '/cdn-cgi/access/logout',
 
   ajaxFeed: () => `${ADMIN_HOME}/ajax/feed/`,
@@ -280,9 +279,6 @@ export const PUBLIC_URLS = {
   },
   rssFeed: (baseUrl='/') => {
     return urlJoin(baseUrl, '/rss/');
-  },
-  rssFeedStylesheet: (baseUrl='/') => {
-    return urlJoin(baseUrl, '/rss/stylesheet/');
   },
   jsonFeed: (baseUrl='/') => {
     return urlJoin(baseUrl, 'json/');

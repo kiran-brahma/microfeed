@@ -255,7 +255,6 @@ export default class FeedDb {
         currentPolicy: 'public',
       },
       [SETTINGS_CATEGORIES.ANALYTICS]: {},
-      [SETTINGS_CATEGORIES.CUSTOM_CODE]: {},
     };
     const channel = {
       image: '/assets/default/channel-image.png',

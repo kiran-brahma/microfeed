@@ -98,7 +98,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 6.1b Wire serializer into JSON feed (all types, tags, members) ✅ reviewed
 - [x] 6.2 RSS: podcast (iTunes) + blog (basic) ✅ reviewed (registry rss config; type-filtered; legacy /rss reads new shape)
 - [x] 6.3a Type-prefixed routing + record-type templates ✅ reviewed
-- [ ] 6.3b Remove Mustache custom-code theming (6.3a)
+- [x] 6.3b Remove Mustache custom-code theming ✅ reviewed (grep-clean + build green; WebResponseBuilder/CodeInjector removed)
 - [x] 6.4 Aggregator web rendering: gallery + landing + home ✅ reviewed
 - [ ] 6.5 Registry-generated OpenAPI spec (Phases 2,3,4)
 

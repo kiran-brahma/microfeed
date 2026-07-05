@@ -8,7 +8,6 @@ export const STATUSES = {
 export const SETTINGS_CATEGORIES = {
   SUBSCRIBE_METHODS: 'subscribeMethods',
   WEB_GLOBAL_SETTINGS: 'webGlobalSettings',
-  CUSTOM_CODE: 'customCode',
   ANALYTICS: 'analytics',
   ACCESS: 'access',
   API_SETTINGS: 'apiSettings',
@@ -19,20 +18,6 @@ export const MAX_ITEMS_PER_PAGE = 300;
 export const ITEMS_SORT_ORDERS = {
   OLDEST_FIRST: 'oldest_first',
   NEWEST_FIRST: 'newest_first',
-};
-
-export const CODE_TYPES = {
-  SHARED: 'shared',
-  THEMES: 'themes',
-};
-
-export const CODE_FILES = {
-  WEB_HEADER: 'webHeader',
-  WEB_BODY_START: 'webBodyStart',
-  WEB_BODY_END: 'webBodyEnd',
-  WEB_FEED: 'webFeed',
-  WEB_ITEM: 'webItem',
-  RSS_STYLESHEET: 'rssStylesheet',
 };
 
 export const PREDEFINED_SUBSCRIBE_METHODS = {
