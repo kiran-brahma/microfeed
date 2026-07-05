@@ -19,7 +19,7 @@
     "sync-version": "node ops/sync_microfeed_version.js"
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.4",
+    "@headlessui/react": "^2",
     "@heroicons/react": "^2.0.13",
     "@tanstack/react-table": "^8.5.28",
     "@uiw/react-textarea-code-editor": "^2.1.9",
