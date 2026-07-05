@@ -15,5 +15,8 @@ module.exports = {
   // Default stays "node" so the backend suite is unaffected. React component
   // test files opt into jsdom individually via a per-file docblock:
   //   /** @jest-environment jsdom */
-  setupFilesAfterEnv: ["@testing-library/jest-dom"],
+  setupFilesAfterEnv: [
+    "@testing-library/jest-dom",
+    "<rootDir>/test-utils/jsdom-prosemirror-polyfills.js",
+  ],
 };

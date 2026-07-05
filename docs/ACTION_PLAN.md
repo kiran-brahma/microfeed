@@ -83,7 +83,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.0 React test infra (jsdom + Testing Library, per-file opt-in) ✅ reviewed
 - [x] 5.1a Upgrade @headlessui/react → v2 ✅ reviewed
 - [x] 5.1b Replace react-quill → TipTap ✅ reviewed
-- [ ] 5.1c Restyle shared admin components (5.1a)
+- [x] 5.1c Restyle shared admin components ✅ reviewed (+fixed pre-existing TipTap jsdom flake via ProseMirror polyfills)
 - [ ] 5.2 Schema-driven FormRenderer (core + simple widgets) (Phase 2, 5.1)
 - [ ] 5.3a Media/image upload widget (5.2)
 - [ ] 5.3b Type picker + new/edit flow (5.2, 5.3a, Phase 3)
