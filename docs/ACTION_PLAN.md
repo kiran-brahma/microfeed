@@ -77,7 +77,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 4.1 TagRepo + tag CRUD ✅ reviewed
 - [x] 4.2 Item↔tag linking + tags field wiring (4.1) ✅ reviewed (item_tags source of truth; strip blob, hydrate on merge)
 - [x] 4.3 Ordered gallery membership + reference wiring (4.2) ✅ reviewed (clear+reinsert; photo-type validation before write)
-- [ ] 4.4 Aggregation resolver (gallery + landing) (4.2, 4.3)
+- [x] 4.4 Aggregation resolver (4.2, 4.3) ✅ reviewed (+fixed landing filter_tags collision via string_list kind)
 
 ### Phase 5 — Admin UI (#7)  · needs Phases 2–4 (5.1a–c can start early)
 - [ ] 5.1a Upgrade @headlessui/react → v2

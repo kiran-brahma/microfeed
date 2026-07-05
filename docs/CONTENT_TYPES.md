@@ -6,7 +6,7 @@
 - **key** = public API / form field name (what payloads use).
 - **target** = internal-schema key written to the item `data` blob (what feeds read). Legacy podcast targets are preserved so the podcast feed keeps working (`description`, `link`, `mediaFile`, `pubDateMs`, `image`, `itunes:*`).
 - `status` is an `enum` on every type with valueMap `{published:1, unpublished:2, unlisted:4}`.
-- Field kinds: text, richtext, media, image, boolean, number, date, enum, url, tags, reference.
+- Field kinds: text, richtext, media, image, boolean, number, date, enum, url, tags, reference, string_list.
 
 ## podcast_episode (record) — feeds: JSON + iTunes RSS + web `/i/[slug]`
 | key | kind | required | target |
@@ -66,10 +66,12 @@
 | content_html | richtext | – | description (intro) |
 | image | image | – | image |
 | content_types | enum(multiple; podcast_episode,blog_article,photo) | – | content_types |
-| tags | tags | – | tags |
+| filter_tags | string_list | – | filter_tags |
 | sort | enum(newest_first,oldest_first) | – | sort |
 | limit | number(int,≥1) | – | limit |
 | layout | enum(list,grid) | – | layout |
+
+> `filter_tags` is a plain string list (kind `string_list`), not the relational `tags` field kind — it's filter *config* stored in the item's own `data` blob, not a tag link on the landing page item itself. This keeps `landing_page` free of any `tags`/`reference` field kind, so `ContentService` never creates relational side effects (item_tags/item_relations rows) for it.
 
 ## Corrections from the first Phase 2 pass (offline drift)
 - Podcast `url`→**link** and `content_html`→**description** targets (were mapping to `url`/`content_html`).

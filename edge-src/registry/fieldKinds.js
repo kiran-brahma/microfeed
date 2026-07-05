@@ -178,6 +178,7 @@ export function validate(def, value) {
       return validateEnum(def, value, label);
     case "tags":
     case "reference":
+    case "string_list":
       return validateArrayOfStrings(def, value, label);
     default:
       throw new Error(`Unsupported field kind: ${def.kind}`);
@@ -230,6 +231,7 @@ export function toInternal(def, value) {
     }
     case "tags":
     case "reference":
+    case "string_list":
       return [...value];
     default:
       throw new Error(`Unsupported field kind: ${def.kind}`);
@@ -283,6 +285,7 @@ export function toPublic(def, value) {
     }
     case "tags":
     case "reference":
+    case "string_list":
       return [...value];
     default:
       throw new Error(`Unsupported field kind: ${def.kind}`);

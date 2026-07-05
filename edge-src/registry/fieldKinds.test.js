@@ -106,4 +106,15 @@ describe("fieldKinds", () => {
     expect(toInternal(referenceDef, ["item_a", "item_b"])).toEqual(["item_a", "item_b"]);
     expect(toPublic(referenceDef, ["item_a", "item_b"])).toEqual(["item_a", "item_b"]);
   });
+
+  test("string_list validates an array of non-empty strings and round-trips unchanged", () => {
+    const def = {kind: "string_list"};
+
+    expect(validate(def, ["tag_1", "tag_2"])).toBeNull();
+    expect(toInternal(def, ["tag_1", "tag_2"])).toEqual(["tag_1", "tag_2"]);
+    expect(toPublic(def, ["tag_1", "tag_2"])).toEqual(["tag_1", "tag_2"]);
+
+    expect(validate(def, "not-an-array")).toMatch(/array/i);
+    expect(validate(def, ["tag_1", ""])).toMatch(/non-empty strings/i);
+  });
 });

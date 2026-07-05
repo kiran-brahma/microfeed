@@ -120,7 +120,7 @@ const TYPE_DEFINITIONS = [
         multiple: true,
         options: CONTENT_TYPE_OPTIONS,
       }),
-      makeFieldDef("tags", "tags"),
+      makeFieldDef("filter_tags", "string_list"),
       makeFieldDef("sort", "enum", {
         options: SORT_OPTIONS,
       }),

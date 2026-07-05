@@ -73,6 +73,27 @@ describe("ContentTypeRegistry", () => {
       kind: "enum",
       multiple: true,
     });
+
+    expect(getFieldDefs("landing_page").map((field) => field.key)).toEqual([
+      "status",
+      "title",
+      "content_html",
+      "image",
+      "content_types",
+      "filter_tags",
+      "sort",
+      "limit",
+      "layout",
+    ]);
+
+    expect(getFieldDefs("landing_page").find((field) => field.key === "filter_tags")).toMatchObject({
+      kind: "string_list",
+    });
+
+    // landing_page's filter fields must not be relational: no tags/reference field kinds.
+    expect(
+      getFieldDefs("landing_page").some((field) => field.kind === "tags" || field.kind === "reference"),
+    ).toBe(false);
   });
 
   test("throws for unknown types", () => {
