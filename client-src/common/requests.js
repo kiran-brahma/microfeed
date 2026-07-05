@@ -5,6 +5,11 @@ const axiosPost = (url, bodyDict) => {
   });
 };
 
+const axiosPut = (url, bodyDict) => {
+  return axios.put(url, bodyDict, {
+  });
+};
+
 function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2OpsFailure) {
   const { size, type } = file;
   axiosPost('/admin/ajax/r2-ops', {
@@ -49,6 +54,7 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
 
 const Requests = {
   axiosPost,
+  axiosPut,
   upload: uploadFile,
 };
 
