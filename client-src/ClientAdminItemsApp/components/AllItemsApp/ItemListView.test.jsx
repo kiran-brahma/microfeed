@@ -1,8 +1,27 @@
 /** @jest-environment jsdom */
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ItemListView from "./ItemListView";
+import Requests from "../../../common/requests";
+import { showToast } from "../../../common/ToastUtils";
+
+jest.mock("../../../common/requests", () => ({
+  __esModule: true,
+  default: {
+    axiosPost: jest.fn(),
+  },
+}));
+
+jest.mock("../../../common/ToastUtils", () => ({
+  __esModule: true,
+  showToast: jest.fn(),
+}));
+
+beforeEach(() => {
+  Requests.axiosPost.mockReset();
+  showToast.mockReset();
+});
 
 function makeFeed(overrides = {}) {
   return {
@@ -147,5 +166,99 @@ describe("ItemListView", () => {
     render(<ItemListView items={[]} feed={makeFeed()} />);
 
     expect(screen.getByText(/no items yet/i)).toBeInTheDocument();
+  });
+
+  describe("bulk actions", () => {
+    let reloadSpy;
+
+    beforeEach(() => {
+      reloadSpy = jest.fn();
+    });
+
+    test("selecting two rows and clicking Publish posts action+ids to the bulk endpoint", async () => {
+      const user = userEvent.setup();
+      Requests.axiosPost.mockResolvedValue({ data: { succeeded: ["ep-1", "post-1"], skipped: [] } });
+
+      render(<ItemListView items={MIXED_ITEMS} feed={makeFeed()} reloadPage={reloadSpy} />);
+
+      await user.click(screen.getAllByRole("checkbox", { name: /select row/i })[0]);
+      await user.click(screen.getAllByRole("checkbox", { name: /select row/i })[1]);
+
+      const publishButton = await screen.findByRole("button", { name: /^publish$/i });
+      await user.click(publishButton);
+
+      expect(Requests.axiosPost).toHaveBeenCalledWith("/admin/ajax/items/bulk", {
+        action: "publish",
+        ids: ["ep-1", "post-1"],
+      });
+    });
+
+    test("selecting two rows and clicking Delete posts delete action+ids to the bulk endpoint", async () => {
+      const user = userEvent.setup();
+      Requests.axiosPost.mockResolvedValue({ data: { succeeded: ["ep-1", "photo-1"], skipped: [] } });
+
+      render(<ItemListView items={MIXED_ITEMS} feed={makeFeed()} reloadPage={reloadSpy} />);
+
+      await user.click(screen.getAllByRole("checkbox", { name: /select row/i })[0]);
+      await user.click(screen.getAllByRole("checkbox", { name: /select row/i })[2]);
+
+      const deleteButton = await screen.findByRole("button", { name: /^delete$/i });
+      await user.click(deleteButton);
+
+      expect(Requests.axiosPost).toHaveBeenCalledWith("/admin/ajax/items/bulk", {
+        action: "delete",
+        ids: ["ep-1", "photo-1"],
+      });
+    });
+
+    test("select-all header checkbox selects all currently-filtered rows", async () => {
+      const user = userEvent.setup();
+      Requests.axiosPost.mockResolvedValue({ data: { succeeded: ["post-1"], skipped: [] } });
+
+      render(<ItemListView items={MIXED_ITEMS} feed={makeFeed()} reloadPage={reloadSpy} />);
+
+      const typeFilter = screen.getByLabelText(/content type/i);
+      await user.selectOptions(typeFilter, "blog_article");
+
+      const selectAll = screen.getByRole("checkbox", { name: /select all/i });
+      await user.click(selectAll);
+
+      const unpublishButton = await screen.findByRole("button", { name: /^unpublish$/i });
+      await user.click(unpublishButton);
+
+      expect(Requests.axiosPost).toHaveBeenCalledWith("/admin/ajax/items/bulk", {
+        action: "unpublish",
+        ids: ["post-1"],
+      });
+    });
+
+    test("shows a toast-worthy outcome and reloads after a successful bulk action", async () => {
+      const user = userEvent.setup();
+      Requests.axiosPost.mockResolvedValue({
+        data: { succeeded: ["ep-1"], skipped: [{ id: "missing", reason: "not found" }] },
+      });
+
+      render(<ItemListView items={MIXED_ITEMS} feed={makeFeed()} reloadPage={reloadSpy} />);
+
+      const rowCheckboxes = screen.getAllByRole("checkbox", { name: /select row/i });
+      await user.click(rowCheckboxes[0]);
+
+      const publishButton = await screen.findByRole("button", { name: /^publish$/i });
+      await user.click(publishButton);
+
+      await waitFor(() => expect(showToast).toHaveBeenCalled());
+      expect(showToast).toHaveBeenCalledWith(
+        expect.stringMatching(/1 updated, 1 skipped/i),
+        "success"
+      );
+      expect(reloadSpy).toHaveBeenCalled();
+    });
+
+    test("bulk action bar is hidden until at least one row is selected", () => {
+      render(<ItemListView items={MIXED_ITEMS} feed={makeFeed()} reloadPage={reloadSpy} />);
+
+      expect(screen.queryByRole("button", { name: /^publish$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^delete$/i })).not.toBeInTheDocument();
+    });
   });
 });

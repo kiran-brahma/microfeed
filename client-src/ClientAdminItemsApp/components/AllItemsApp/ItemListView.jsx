@@ -13,40 +13,56 @@ import { listTypes } from "../../../../edge-src/registry/ContentTypeRegistry";
 import AdminRadio from "../../../components/AdminRadio";
 import TypeBadge from "./TypeBadge";
 import ItemFilters from "./ItemFilters";
+import Requests from "../../../common/requests";
+import { showToast } from "../../../common/ToastUtils";
 
 const columnHelper = createColumnHelper();
 
-const columns = [
-  columnHelper.accessor("contentType", {
-    header: "Type",
-    cell: (info) => <TypeBadge contentType={info.getValue()} />,
-  }),
-  columnHelper.accessor("title", {
-    header: "Title",
-    cell: (info) => info.getValue(),
-  }),
-  columnHelper.accessor("statusLabel", {
-    header: "Status",
-    cell: (info) => (
-      <div
-        className={clsx(
-          "text-center font-semibold",
-          info.row.original.status === "published" ? "text-brand-light" : ""
-        )}
-      >
-        {info.getValue()}
-      </div>
-    ),
-  }),
-  columnHelper.accessor("datePublishedMs", {
-    header: "Published date",
-    cell: (info) => (
-      <div className="text-center">
-        {info.getValue() ? msToDatetimeLocalString(info.getValue()) : "-"}
-      </div>
-    ),
-  }),
-];
+function buildColumns(selectedIds, onToggleRow) {
+  return [
+    columnHelper.display({
+      id: "select",
+      header: "",
+      cell: (info) => (
+        <input
+          type="checkbox"
+          aria-label={`select row ${info.row.original.id}`}
+          checked={selectedIds.has(info.row.original.id)}
+          onChange={() => onToggleRow(info.row.original.id)}
+        />
+      ),
+    }),
+    columnHelper.accessor("contentType", {
+      header: "Type",
+      cell: (info) => <TypeBadge contentType={info.getValue()} />,
+    }),
+    columnHelper.accessor("title", {
+      header: "Title",
+      cell: (info) => info.getValue(),
+    }),
+    columnHelper.accessor("statusLabel", {
+      header: "Status",
+      cell: (info) => (
+        <div
+          className={clsx(
+            "text-center font-semibold",
+            info.row.original.status === "published" ? "text-brand-light" : ""
+          )}
+        >
+          {info.getValue()}
+        </div>
+      ),
+    }),
+    columnHelper.accessor("datePublishedMs", {
+      header: "Published date",
+      cell: (info) => (
+        <div className="text-center">
+          {info.getValue() ? msToDatetimeLocalString(info.getValue()) : "-"}
+        </div>
+      ),
+    }),
+  ];
+}
 
 function statusLabelFor(status) {
   const statusCode = ITEM_STATUSES_STRINGS_DICT[status];
@@ -64,12 +80,15 @@ function collectTagOptions(items) {
   return Array.from(seen).sort();
 }
 
-function ItemTable({ rows }) {
+function ItemTable({ rows, selectedIds, onToggleRow, onToggleSelectAll }) {
+  const columns = useMemo(() => buildColumns(selectedIds, onToggleRow), [selectedIds, onToggleRow]);
   const table = useReactTable({
     data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const allSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.id));
 
   return (
     <table className="border-collapse text-helper-color text-sm w-full">
@@ -81,7 +100,16 @@ function ItemTable({ rows }) {
                 key={header.id}
                 className="uppercase border border-slate-300 bg-brand-dark text-white py-2 px-4"
               >
-                {flexRender(header.column.columnDef.header, header.getContext())}
+                {header.column.id === "select" ? (
+                  <input
+                    type="checkbox"
+                    aria-label="select all (filtered)"
+                    checked={allSelected}
+                    onChange={() => onToggleSelectAll(rows.map((row) => row.id), !allSelected)}
+                  />
+                ) : (
+                  flexRender(header.column.columnDef.header, header.getContext())
+                )}
               </th>
             ))}
           </tr>
@@ -108,10 +136,58 @@ function ItemTable({ rows }) {
   );
 }
 
-export default function ItemListView({ items, feed = {} }) {
+function BulkActionBar({ selectedCount, tagIdsInput, onTagIdsInputChange, onAction }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-slate-300 bg-slate-50 py-2 px-4">
+      <span className="text-sm font-semibold text-helper-color">
+        {selectedCount} selected
+      </span>
+      <button
+        type="button"
+        className="rounded-md bg-brand-light px-3 py-1.5 text-sm font-semibold text-white"
+        onClick={() => onAction("publish")}
+      >
+        Publish
+      </button>
+      <button
+        type="button"
+        className="rounded-md bg-slate-500 px-3 py-1.5 text-sm font-semibold text-white"
+        onClick={() => onAction("unpublish")}
+      >
+        Unpublish
+      </button>
+      <button
+        type="button"
+        className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white"
+        onClick={() => onAction("delete")}
+      >
+        Delete
+      </button>
+      <input
+        type="text"
+        aria-label="tag ids"
+        placeholder="tag ids (comma separated)"
+        value={tagIdsInput}
+        onChange={(e) => onTagIdsInputChange(e.target.value)}
+        className="rounded-md border border-gray-300 py-1.5 px-2 text-sm"
+      />
+      <button
+        type="button"
+        className="rounded-md bg-brand-dark px-3 py-1.5 text-sm font-semibold text-white"
+        onClick={() => onAction("tag")}
+      >
+        Tag
+      </button>
+    </div>
+  );
+}
+
+export default function ItemListView({ items, feed = {}, reloadPage = () => window.location.reload() }) {
   const [contentType, setContentType] = useState("");
   const [status, setStatus] = useState("");
   const [tag, setTag] = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [tagIdsInput, setTagIdsInput] = useState("");
 
   const typeOptions = useMemo(() => listTypes().map((typeDef) => typeDef.name), []);
   const tagOptions = useMemo(() => collectTagOptions(items), [items]);
@@ -130,6 +206,57 @@ export default function ItemListView({ items, feed = {} }) {
       return true;
     });
   }, [items, contentType, status, tag]);
+
+  const handleToggleRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = (ids, shouldSelect) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => {
+        if (shouldSelect) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (action) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      return;
+    }
+
+    const body = { action, ids };
+    if (action === "tag") {
+      body.tagIds = tagIdsInput
+        .split(",")
+        .map((tagId) => tagId.trim())
+        .filter(Boolean);
+    }
+
+    try {
+      const response = await Requests.axiosPost("/admin/ajax/items/bulk", body);
+      const { succeeded = [], skipped = [] } = response.data || {};
+      showToast(`${succeeded.length} updated, ${skipped.length} skipped`, "success");
+      setSelectedIds(new Set());
+      reloadPage();
+    } catch (error) {
+      showToast("Bulk action failed. Please try again.", "error");
+    }
+  };
 
   const rows = filteredItems.map((item) => ({
     id: item.id,
@@ -197,8 +324,21 @@ export default function ItemListView({ items, feed = {} }) {
         onStatusChange={setStatus}
         onTagChange={setTag}
       />
+      {selectedIds.size > 0 && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          tagIdsInput={tagIdsInput}
+          onTagIdsInputChange={setTagIdsInput}
+          onAction={handleBulkAction}
+        />
+      )}
       {rows.length > 0 ? (
-        <ItemTable rows={rows} />
+        <ItemTable
+          rows={rows}
+          selectedIds={selectedIds}
+          onToggleRow={handleToggleRow}
+          onToggleSelectAll={handleToggleSelectAll}
+        />
       ) : (
         <div className="py-8 text-center text-helper-color">
           No items match the selected filters.

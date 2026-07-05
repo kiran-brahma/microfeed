@@ -89,7 +89,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.3b-api Admin ContentService item endpoints (session-authed) ✅ reviewed
 - [x] 5.3b Type picker + new/edit flow ✅ reviewed (schema editor, old form retired, no data loss)
 - [x] 5.3c Item list + filtering ✅ reviewed (type badges, content_type/status/tag filters, extracted ItemListView)
-- [ ] 5.3d Bulk actions in list (5.3c, 3.4)
+- [x] 5.3d Bulk actions in list ✅ reviewed (admin bulk endpoint + multi-select bar)
 - [ ] 5.4a Tag manager screen (4.1)
 - [ ] 5.4b Tags widget — multiselect + inline add (5.2, Phase 4)
 - [ ] 5.5a Gallery curator (5.2, 4.3)
