@@ -169,9 +169,10 @@ function rowToPublicItem(typeName, row) {
 }
 
 export default class ContentService extends FeedCrudManager {
-  constructor(feedContent, feedDb, request) {
+  constructor(feedContent, feedDb, request, mediaStore = null) {
     super(feedContent, feedDb, request);
     this.itemRepo = feedDb.itemRepo;
+    this.mediaStore = mediaStore;
   }
 
   async create(typeName, payload = {}) {
@@ -270,6 +271,58 @@ export default class ContentService extends FeedCrudManager {
     }
 
     await this.itemRepo.update(itemId, {status: STATUSES.DELETED});
+
+    return itemId;
+  }
+
+  async purge(itemId, {force = false} = {}) {
+    const existingRow = await this.itemRepo.getById(itemId);
+    if (!existingRow) {
+      return validationError("id", "Item not found");
+    }
+
+    if (existingRow.status !== STATUSES.DELETED && !force) {
+      return validationError("id", "Item must be soft-deleted before purge");
+    }
+
+    const typeName = existingRow.content_type;
+    const mediaKeys = [];
+    if (typeName) {
+      let internalData = {};
+      try {
+        internalData = existingRow.data ? JSON.parse(existingRow.data) : {};
+      } catch (error) {
+        internalData = {};
+      }
+
+      getFieldDefs(typeName).forEach((fieldDef) => {
+        if (fieldDef.kind === "image") {
+          const key = getByPath(internalData, fieldDef.feedMapping.target);
+          if (key) {
+            mediaKeys.push(key);
+          }
+        } else if (fieldDef.kind === "media") {
+          const mediaFile = getByPath(internalData, fieldDef.feedMapping.target);
+          const key = mediaFile && mediaFile.url;
+          if (key) {
+            mediaKeys.push(key);
+          }
+        }
+      });
+    }
+
+    if (this.mediaStore) {
+      for (const key of mediaKeys) {
+        await this.mediaStore.deleteObject(key);
+      }
+    }
+
+    const db = this.itemRepo.db;
+    await db.batch([
+      db.prepare("DELETE FROM item_tags WHERE item_id = ?").bind(itemId),
+      db.prepare("DELETE FROM item_relations WHERE parent_item_id = ? OR child_item_id = ?").bind(itemId, itemId),
+      this.itemRepo.buildDeleteStatement(itemId),
+    ]);
 
     return itemId;
   }

@@ -133,4 +133,20 @@ export default class BaseRepo {
   async upsert(row) {
     return this.buildUpsertStatement(row).run();
   }
+
+  buildDeleteStatement(where) {
+    const whereClause = normalizeWhere(where, this.primaryKey);
+
+    const whereKeys = Object.keys(whereClause);
+    const whereSql = whereKeys.map((column) => `${quoteIdentifier(column)} = ?`).join(" AND ");
+    const whereValues = whereKeys.map((column) => whereClause[column]);
+
+    return this.db.prepare(
+      `DELETE FROM ${quoteIdentifier(this.table)} WHERE ${whereSql}`,
+    ).bind(...whereValues);
+  }
+
+  async delete(where) {
+    return this.buildDeleteStatement(where).run();
+  }
 }

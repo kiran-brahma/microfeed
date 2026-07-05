@@ -12,6 +12,18 @@ function makeService(db) {
   };
 }
 
+function makeServiceWithMediaStore(db) {
+  const itemRepo = new ItemRepo(db);
+  const mediaStore = {
+    deleteObject: jest.fn().mockResolvedValue(undefined),
+  };
+  return {
+    itemRepo,
+    mediaStore,
+    service: new ContentService({}, {itemRepo}, {url: "https://example.com/"}, mediaStore),
+  };
+}
+
 describe("ContentService", () => {
   test("create persists typed content with generated slug and mapped internal schema", async () => {
     const db = createMigratedInMemoryDatabase();
@@ -261,5 +273,163 @@ describe("ContentService", () => {
     } finally {
       db.close();
     }
+  });
+
+  describe("purge", () => {
+    test("purges a soft-deleted podcast item, deleting its media and link rows", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service, mediaStore} = makeServiceWithMediaStore(db);
+
+      try {
+        await service.create("podcast_episode", {
+          status: "published",
+          title: "Episode One",
+          content_html: "<p>Body</p>",
+          image: "https://cdn.example.com/images/cover-1.png",
+          attachment: {
+            category: "audio",
+            url: "https://cdn.example.com/media/audio-1.mp3",
+          },
+        });
+        const existing = await itemRepo.getByTypeAndSlug("podcast_episode", "episode-one");
+        expect(existing).toBeTruthy();
+
+        // Seed link rows directly to prove purge cleans them up.
+        const tagRow = {id: "tag00000001", slug: "news", name: "News"};
+        db.prepare(
+          "INSERT INTO tags (id, slug, name) VALUES (?, ?, ?)",
+        ).bind(tagRow.id, tagRow.slug, tagRow.name).run();
+        await db.prepare(
+          "INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)",
+        ).bind(existing.id, tagRow.id).run();
+
+        const otherItemId = await service.create("podcast_episode", {
+          status: "published",
+          title: "Episode Two",
+          content_html: "<p>Other</p>",
+        });
+        await db.prepare(
+          "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+        ).bind(existing.id, otherItemId, "gallery_member", 0).run();
+
+        await service.delete(existing.id);
+
+        const result = await service.purge(existing.id);
+
+        expect(result).toEqual(existing.id);
+        expect(await itemRepo.getById(existing.id)).toBeNull();
+
+        expect(mediaStore.deleteObject).toHaveBeenCalledTimes(2);
+        const calledKeys = mediaStore.deleteObject.mock.calls.map((call) => call[0]);
+        expect(calledKeys).toEqual(expect.arrayContaining([
+          "images/cover-1.png",
+          "media/audio-1.mp3",
+        ]));
+
+        const remainingItemTags = await db.prepare(
+          "SELECT * FROM item_tags WHERE item_id = ?",
+        ).bind(existing.id).all();
+        expect(remainingItemTags.results).toHaveLength(0);
+
+        const remainingRelations = await db.prepare(
+          "SELECT * FROM item_relations WHERE parent_item_id = ? OR child_item_id = ?",
+        ).bind(existing.id, existing.id).all();
+        expect(remainingRelations.results).toHaveLength(0);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("purges a soft-deleted photo item, deleting its image", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service, mediaStore} = makeServiceWithMediaStore(db);
+
+      try {
+        await service.create("photo", {
+          status: "published",
+          title: "A Photo",
+          image: "https://cdn.example.com/images/photo-1.png",
+        });
+        const existing = await itemRepo.getByTypeAndSlug("photo", "a-photo");
+        await service.delete(existing.id);
+
+        const result = await service.purge(existing.id);
+
+        expect(result).toEqual(existing.id);
+        expect(await itemRepo.getById(existing.id)).toBeNull();
+        expect(mediaStore.deleteObject).toHaveBeenCalledTimes(1);
+        expect(mediaStore.deleteObject).toHaveBeenCalledWith("images/photo-1.png");
+      } finally {
+        db.close();
+      }
+    });
+
+    test("purge on a live item without force returns an error and changes nothing", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service, mediaStore} = makeServiceWithMediaStore(db);
+
+      try {
+        await service.create("blog_article", {
+          status: "published",
+          title: "Still Live",
+          content_html: "<p>Body</p>",
+        });
+        const existing = await itemRepo.getByTypeAndSlug("blog_article", "still-live");
+
+        const result = await service.purge(existing.id);
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "id", message: "Item must be soft-deleted before purge"}),
+          ]),
+        });
+        expect(await itemRepo.getById(existing.id)).toMatchObject({
+          id: existing.id,
+          status: STATUSES.PUBLISHED,
+        });
+        expect(mediaStore.deleteObject).not.toHaveBeenCalled();
+      } finally {
+        db.close();
+      }
+    });
+
+    test("purge on a live item with force:true removes it", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeServiceWithMediaStore(db);
+
+      try {
+        await service.create("blog_article", {
+          status: "published",
+          title: "Force Purge Me",
+          content_html: "<p>Body</p>",
+        });
+        const existing = await itemRepo.getByTypeAndSlug("blog_article", "force-purge-me");
+
+        const result = await service.purge(existing.id, {force: true});
+
+        expect(result).toEqual(existing.id);
+        expect(await itemRepo.getById(existing.id)).toBeNull();
+      } finally {
+        db.close();
+      }
+    });
+
+    test("purge on a missing id returns a not-found error", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaStore} = makeServiceWithMediaStore(db);
+
+      try {
+        const result = await service.purge("does-not-exist");
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "id", message: "Item not found"}),
+          ]),
+        });
+        expect(mediaStore.deleteObject).not.toHaveBeenCalled();
+      } finally {
+        db.close();
+      }
+    });
   });
 });
