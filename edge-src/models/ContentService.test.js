@@ -1,5 +1,7 @@
 import ContentService from "./ContentService";
 import ItemRepo from "./ItemRepo";
+import TagLinkRepo from "./TagLinkRepo";
+import TagService from "./TagService";
 import {STATUSES} from "../../common-src/Constants";
 
 const {createMigratedInMemoryDatabase} = require("../../test-utils/d1-substitute");
@@ -8,8 +10,19 @@ function makeService(db) {
   const itemRepo = new ItemRepo(db);
   return {
     itemRepo,
+    tagLinkRepo: new TagLinkRepo(db),
     service: new ContentService({}, {itemRepo}, {url: "https://example.com/"}),
   };
+}
+
+async function createTags(db, names) {
+  const tagService = new TagService(db);
+  const tags = [];
+  for (const name of names) {
+    const tag = await tagService.create({name});
+    tags.push(tag);
+  }
+  return tags;
 }
 
 function makeServiceWithMediaStore(db) {
@@ -27,16 +40,18 @@ function makeServiceWithMediaStore(db) {
 describe("ContentService", () => {
   test("create persists typed content with generated slug and mapped internal schema", async () => {
     const db = createMigratedInMemoryDatabase();
-    const {itemRepo, service} = makeService(db);
+    const {itemRepo, tagLinkRepo, service} = makeService(db);
 
     try {
+      const [newsTag, launchTag] = await createTags(db, ["news", "launch"]);
+
       await service.create("blog_article", {
         status: "published",
         title: "Hello World",
         content_html: "<p>Body</p>",
         excerpt: "Short teaser",
         author: "Ada Lovelace",
-        tags: ["news", "launch"],
+        tags: [newsTag.id, launchTag.id],
         date_published_ms: 1720051200000,
       });
 
@@ -52,8 +67,10 @@ describe("ContentService", () => {
         description: "<p>Body</p>",
         excerpt: "Short teaser",
         author: "Ada Lovelace",
-        tags: ["news", "launch"],
       });
+
+      const linkedTagIds = await tagLinkRepo.getTagIdsForItem(row.id);
+      expect(linkedTagIds.sort()).toEqual([newsTag.id, launchTag.id].sort());
     } finally {
       db.close();
     }
@@ -87,16 +104,18 @@ describe("ContentService", () => {
 
   test("update merges with existing content and revalidates the full payload", async () => {
     const db = createMigratedInMemoryDatabase();
-    const {itemRepo, service} = makeService(db);
+    const {itemRepo, tagLinkRepo, service} = makeService(db);
 
     try {
+      const [oneTag, twoTag] = await createTags(db, ["one", "two"]);
+
       await service.create("blog_article", {
         status: "published",
         title: "Original Title",
         content_html: "<p>Original body</p>",
         excerpt: "Original teaser",
         author: "Ada",
-        tags: ["one", "two"],
+        tags: [oneTag.id, twoTag.id],
         date_published_ms: 1720051200000,
       });
 
@@ -119,8 +138,69 @@ describe("ContentService", () => {
         description: "<p>Original body</p>",
         excerpt: "Updated teaser",
         author: "Ada",
-        tags: ["one", "two"],
       });
+
+      const linkedTagIds = await tagLinkRepo.getTagIdsForItem(existing.id);
+      expect(linkedTagIds.sort()).toEqual([oneTag.id, twoTag.id].sort());
+    } finally {
+      db.close();
+    }
+  });
+
+  test("update replacing tags updates item_tags links to exactly the new set", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, tagLinkRepo, service} = makeService(db);
+
+    try {
+      const [tagOne, tagTwo, tagThree] = await createTags(db, ["one", "two", "three"]);
+
+      await service.create("blog_article", {
+        status: "published",
+        title: "Tag Replace Test",
+        content_html: "<p>Body</p>",
+        tags: [tagOne.id, tagTwo.id],
+      });
+
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "tag-replace-test");
+
+      const result = await service.update(existing.id, {
+        tags: [tagTwo.id, tagThree.id],
+      });
+
+      expect(result).not.toHaveProperty("errors");
+      const linkedTagIds = await tagLinkRepo.getTagIdsForItem(existing.id);
+      expect(linkedTagIds.sort()).toEqual([tagTwo.id, tagThree.id].sort());
+
+      const updatedRow = await itemRepo.getById(existing.id);
+      expect(JSON.parse(updatedRow.data)).not.toHaveProperty("tags");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("update without a tags field in the patch preserves existing tag links", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, tagLinkRepo, service} = makeService(db);
+
+    try {
+      const [tagOne, tagTwo] = await createTags(db, ["one", "two"]);
+
+      await service.create("blog_article", {
+        status: "published",
+        title: "Tag Preserve Test",
+        content_html: "<p>Body</p>",
+        tags: [tagOne.id, tagTwo.id],
+      });
+
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "tag-preserve-test");
+
+      const result = await service.update(existing.id, {
+        excerpt: "Just a text update, no tags key",
+      });
+
+      expect(result).not.toHaveProperty("errors");
+      const linkedTagIds = await tagLinkRepo.getTagIdsForItem(existing.id);
+      expect(linkedTagIds.sort()).toEqual([tagOne.id, tagTwo.id].sort());
     } finally {
       db.close();
     }

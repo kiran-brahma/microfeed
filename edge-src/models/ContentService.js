@@ -1,4 +1,5 @@
 import FeedCrudManager from "./FeedCrudManager";
+import TagLinkRepo from "./TagLinkRepo";
 import {STATUSES} from "../../common-src/Constants";
 import {randomShortUUID} from "../../common-src/StringUtils";
 import {msToRFC3339, rfc3399ToMs} from "../../common-src/TimeUtils";
@@ -38,6 +39,21 @@ function setByPath(obj, path, value) {
     cursor = cursor[part];
   }
   cursor[parts[parts.length - 1]] = value;
+}
+
+function deleteByPath(obj, path) {
+  const parts = normalizePath(path);
+  let cursor = obj;
+  for (let index = 0; index < parts.length - 1; index++) {
+    const part = parts[index];
+    if (cursor === undefined || cursor === null || typeof cursor !== "object") {
+      return;
+    }
+    cursor = cursor[part];
+  }
+  if (cursor !== undefined && cursor !== null && typeof cursor === "object") {
+    delete cursor[parts[parts.length - 1]];
+  }
 }
 
 function isPlainObject(value) {
@@ -143,6 +159,10 @@ function itemInternalToRow(itemId, contentType, slug, internalItem, existingRow 
   return row;
 }
 
+function getTagsFieldDef(typeName) {
+  return getFieldDefs(typeName).find((fieldDef) => fieldDef.kind === "tags");
+}
+
 function rowToPublicItem(typeName, row) {
   const publicItem = {};
   const internalData = row?.data ? JSON.parse(row.data) : {};
@@ -173,6 +193,7 @@ export default class ContentService extends FeedCrudManager {
     super(feedContent, feedDb, request);
     this.itemRepo = feedDb.itemRepo;
     this.mediaStore = mediaStore;
+    this.tagLinkRepo = new TagLinkRepo(this.itemRepo.db);
   }
 
   async create(typeName, payload = {}) {
@@ -188,6 +209,11 @@ export default class ContentService extends FeedCrudManager {
     }
 
     const internalItem = mapItem(typeName, inputPayload);
+    const tagsFieldDef = getTagsFieldDef(typeName);
+    if (tagsFieldDef) {
+      deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
+    }
+
     const itemId = inputPayload.id || randomShortUUID();
     const slugSource = normalizeSlugSource(inputPayload.title);
     const slug = slugSource || randomShortUUID();
@@ -205,6 +231,11 @@ export default class ContentService extends FeedCrudManager {
         return validationError("slug", "Slug already exists for this content type");
       }
       throw error;
+    }
+
+    if (tagsFieldDef) {
+      const tagIds = inputPayload[tagsFieldDef.key] || [];
+      await this.tagLinkRepo.setItemTags(itemId, tagIds);
     }
 
     return itemId;
@@ -229,6 +260,12 @@ export default class ContentService extends FeedCrudManager {
       return validationError("content_type", error.message);
     }
 
+    const tagsFieldDef = getTagsFieldDef(typeName);
+    if (tagsFieldDef) {
+      const existingTagIds = await this.tagLinkRepo.getTagIdsForItem(itemId);
+      setByPath(existingPublicItem, tagsFieldDef.feedMapping.source, existingTagIds);
+    }
+
     const mergedPublicItem = mergeDeep(existingPublicItem, inputPayload);
 
     let validation;
@@ -243,6 +280,10 @@ export default class ContentService extends FeedCrudManager {
     }
 
     const internalItem = mapItem(typeName, mergedPublicItem);
+    if (tagsFieldDef) {
+      deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
+    }
+
     const slugSource = normalizeSlugSource(mergedPublicItem.title);
     const slug = slugSource || existingRow.slug || randomShortUUID();
     const existingWithSlug = await this.itemRepo.getByTypeAndSlug(typeName, slug);
@@ -259,6 +300,11 @@ export default class ContentService extends FeedCrudManager {
         return validationError("slug", "Slug already exists for this content type");
       }
       throw error;
+    }
+
+    if (tagsFieldDef) {
+      const mergedTagIds = getByPath(mergedPublicItem, tagsFieldDef.feedMapping.source) || [];
+      await this.tagLinkRepo.setItemTags(itemId, mergedTagIds);
     }
 
     return itemId;
