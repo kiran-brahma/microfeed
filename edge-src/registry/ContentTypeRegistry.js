@@ -30,6 +30,7 @@ const TYPE_DEFINITIONS = [
   {
     name: "podcast_episode",
     family: "record",
+    rss: "itunes",
     fieldDefs: [
       makeFieldDef("status", "enum", {...STATUS_ENUM_EXTRA}),
       makeFieldDef("title", "text", {required: true}),
@@ -73,6 +74,7 @@ const TYPE_DEFINITIONS = [
   {
     name: "blog_article",
     family: "record",
+    rss: "basic",
     fieldDefs: [
       makeFieldDef("status", "enum", {...STATUS_ENUM_EXTRA}),
       makeFieldDef("title", "text", {required: true}),
@@ -170,6 +172,17 @@ export function isAggregator(typeName) {
   return getType(typeName).family === "aggregator";
 }
 
+/**
+ * Returns the RSS flavor a content type should be rendered with:
+ * "itunes" (podcast RSS with iTunes tags + enclosure), "basic" (plain
+ * RSS 2.0 item), or null when the type has no RSS mapping at all
+ * (e.g. photo, gallery, landing_page).
+ */
+export function getRssKind(typeName) {
+  const typeDef = getType(typeName);
+  return typeDef.rss || null;
+}
+
 export {TYPE_DEFINITIONS};
 
 export default {
@@ -177,5 +190,6 @@ export default {
   listTypes,
   getFieldDefs,
   isAggregator,
+  getRssKind,
   TYPE_DEFINITIONS,
 };

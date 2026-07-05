@@ -7,6 +7,10 @@
 - **target** = internal-schema key written to the item `data` blob (what feeds read). Legacy podcast targets are preserved so the podcast feed keeps working (`description`, `link`, `mediaFile`, `pubDateMs`, `image`, `itunes:*`).
 - `status` is an `enum` on every type with valueMap `{published:1, unpublished:2, unlisted:4}`.
 - Field kinds: text, richtext, media, image, boolean, number, date, enum, url, tags, reference, string_list.
+- **rss** = optional per-type RSS flavor exposed by the registry (`getRssKind(typeName)` → `"itunes" | "basic" | null`), consumed by `FeedPublicRssBuilder`:
+  - `podcast_episode` → `"itunes"` — full iTunes-tagged RSS 2.0 item (`itunes:*`, `<enclosure>`).
+  - `blog_article` → `"basic"` — plain RSS 2.0 item (title/link/description/guid/pubDate only, no iTunes tags, no enclosure).
+  - `photo`, `gallery`, `landing_page` → no `rss` key → `getRssKind` returns `null` → excluded from RSS entirely.
 
 ## podcast_episode (record) — feeds: JSON + iTunes RSS + web `/i/[slug]`
 | key | kind | required | target |

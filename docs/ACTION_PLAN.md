@@ -96,7 +96,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 ### Phase 6 — Public web + feeds (#8)  · needs Phases 2–4
 - [x] 6.1 FeedItemSerializer (pure, registry-driven) ✅ reviewed
 - [x] 6.1b Wire serializer into JSON feed (all types, tags, members) ✅ reviewed
-- [ ] 6.2 RSS: podcast (iTunes) + blog (6.1)
+- [x] 6.2 RSS: podcast (iTunes) + blog (basic) ✅ reviewed (registry rss config; type-filtered; legacy /rss reads new shape)
 - [ ] 6.3a Type-prefixed routing + record-type templates (6.1)
 - [ ] 6.3b Remove Mustache custom-code theming (6.3a)
 - [ ] 6.4 Aggregator web rendering: gallery + landing (6.3a, Phase 4)

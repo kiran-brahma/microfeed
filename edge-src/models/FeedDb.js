@@ -5,6 +5,7 @@ import {
 } from '../../common-src/Constants';
 import {msToRFC3339, rfc3399ToMs} from "../../common-src/TimeUtils";
 import FeedPublicJsonBuilder from "./FeedPublicJsonBuilder";
+import FeedPublicRssBuilder from "./FeedPublicRssBuilder";
 import ChannelRepo from "./ChannelRepo";
 import ItemRepo from "./ItemRepo";
 import SettingsRepo from "./SettingsRepo";
@@ -453,5 +454,21 @@ export default class FeedDb {
     }
     const builder = new FeedPublicJsonBuilder(content, this.baseUrl, this.request, forOneItem);
     return builder.getJsonData();
+  }
+
+  /**
+   * Builds a type-aware RSS feed string (podcast iTunes RSS or blog basic
+   * RSS 2.0, per the registry's `rss` config) for the given content type.
+   * `content` may be a raw FeedDb content object (channel/settings/items) or
+   * already-built JSON feed data (from getPublicJsonData); both are accepted
+   * so callers can reuse a content fetch across JSON + RSS builds.
+   */
+  async getPublicRssData(content, contentType) {
+    let jsonData = content;
+    if (!jsonData || !jsonData._microfeed) {
+      jsonData = await this.getPublicJsonData(content);
+    }
+    const builder = new FeedPublicRssBuilder(jsonData, this.baseUrl, {contentType});
+    return builder.getRssData();
   }
 }

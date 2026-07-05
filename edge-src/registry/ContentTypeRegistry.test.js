@@ -1,4 +1,4 @@
-import {getFieldDefs, getType, isAggregator, listTypes} from "./ContentTypeRegistry";
+import {getFieldDefs, getRssKind, getType, isAggregator, listTypes} from "./ContentTypeRegistry";
 
 describe("ContentTypeRegistry", () => {
   test("declares the five built-in types", () => {
@@ -100,5 +100,25 @@ describe("ContentTypeRegistry", () => {
     expect(() => getType("unknown")).toThrow(/unknown content type/i);
     expect(() => getFieldDefs("unknown")).toThrow(/unknown content type/i);
     expect(() => isAggregator("unknown")).toThrow(/unknown content type/i);
+  });
+
+  test("declares per-type rss kind and round-trips it through cloneTypeDef", () => {
+    expect(getType("podcast_episode").rss).toBe("itunes");
+    expect(getType("blog_article").rss).toBe("basic");
+    expect(getType("photo").rss).toBeUndefined();
+    expect(getType("gallery").rss).toBeUndefined();
+    expect(getType("landing_page").rss).toBeUndefined();
+
+    expect(getRssKind("podcast_episode")).toBe("itunes");
+    expect(getRssKind("blog_article")).toBe("basic");
+    expect(getRssKind("photo")).toBeNull();
+    expect(getRssKind("gallery")).toBeNull();
+    expect(getRssKind("landing_page")).toBeNull();
+    expect(() => getRssKind("unknown")).toThrow(/unknown content type/i);
+
+    // listTypes() carries the rss field through too.
+    const listed = listTypes();
+    expect(listed.find((t) => t.name === "podcast_episode").rss).toBe("itunes");
+    expect(listed.find((t) => t.name === "blog_article").rss).toBe("basic");
   });
 });
