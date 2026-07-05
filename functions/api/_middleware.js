@@ -1,5 +1,5 @@
 import FeedDb from "../../edge-src/models/FeedDb";
-import FeedCrudManager from "../../edge-src/models/FeedCrudManager";
+import ContentService from "../../edge-src/models/ContentService";
 import {SETTINGS_CATEGORIES} from "../../common-src/Constants";
 
 async function fetchFeedAndAuth({request, next, env, data}) {
@@ -13,7 +13,7 @@ async function fetchFeedAndAuth({request, next, env, data}) {
   data.publicBucketUrl = publicBucketUrl;
   data.feedDb = feedDb;
   data.feedContent = contentFromDb;
-  data.feedCrud = new FeedCrudManager(contentFromDb, feedDb, request);
+  data.feedCrud = new ContentService(contentFromDb, feedDb, request);
 
   if (contentFromDb.settings) {
     const apiSettings = contentFromDb.settings[SETTINGS_CATEGORIES.API_SETTINGS];
