@@ -1,7 +1,20 @@
 import React, { useState } from "react";
 import Requests from "../../../common/requests";
-import { randomHex } from "../../../../common-src/StringUtils";
+import { randomHex, urlJoinWithRelative } from "../../../../common-src/StringUtils";
 import { ENCLOSURE_CATEGORIES, ENCLOSURE_CATEGORIES_DICT } from "../../../../common-src/Constants";
+
+// The internally-stored media url is host-less (it already includes the
+// project/env prefix). External urls are absolute already; everything else is
+// joined onto the public bucket url so the preview link actually resolves.
+function absoluteMediaUrl(mediaFile, publicBucketUrl) {
+  if (!mediaFile || !mediaFile.url) {
+    return "";
+  }
+  if (mediaFile.category === ENCLOSURE_CATEGORIES.EXTERNAL_URL) {
+    return mediaFile.url;
+  }
+  return urlJoinWithRelative(publicBucketUrl || "", mediaFile.url);
+}
 
 function fieldLabel(fieldDef) {
   return fieldDef.label || fieldDef.key;
@@ -118,7 +131,14 @@ export default function MediaUploadWidget({ fieldDef, value, onChange, error, pu
         <div className="mt-2 flex items-center gap-3 text-sm">
           <div className="flex flex-col">
             <span className="font-medium">{value.category}</span>
-            <span className="text-xs text-gray-500 break-all">{value.url}</span>
+            <a
+              className="text-xs text-brand-dark underline break-all"
+              href={absoluteMediaUrl(value, publicBucketUrl)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {absoluteMediaUrl(value, publicBucketUrl)}
+            </a>
             {value.size_in_bytes ? (
               <span className="text-xs text-gray-400">{humanFileSize(value.size_in_bytes)}</span>
             ) : null}
