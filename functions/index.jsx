@@ -1,17 +1,43 @@
 import React from "react";
-import EdgeHomeApp from '../edge-src/EdgeHomeApp';
-import {WebResponseBuilder} from '../edge-src/common/PageUtils';
+import ItemRepo from "../edge-src/models/ItemRepo";
+import FeedDb from "../edge-src/models/FeedDb";
+import {serializeItemForFeed} from "../edge-src/models/FeedItemSerializer";
+import {listTypes} from "../edge-src/registry/ContentTypeRegistry";
+import HomePage from "../edge-src/web/HomePage";
+import {renderReactToHtml} from "../edge-src/common/PageUtils";
 import {STATUSES} from "../common-src/Constants";
 
+const HOME_ITEMS_LIMIT = 20;
+
+function recordTypeNames() {
+  return listTypes().filter((type) => type.family === "record").map((type) => type.name);
+}
+
 export async function onRequestGet({env, request}) {
-  const webResponseBuilder = new WebResponseBuilder(env, request, {
+  const feedDb = new FeedDb(env, request);
+  const content = await feedDb.getContent();
+  const webGlobalSettings = (content.settings && content.settings.webGlobalSettings) || {};
+  const publicBucketUrl = webGlobalSettings.publicBucketUrl || "";
+
+  const itemRepo = new ItemRepo(env.FEED_DB);
+  const response = await itemRepo.list({
     queryKwargs: {
+      content_type__in: recordTypeNames(),
       status: STATUSES.PUBLISHED,
     },
+    orderBy: ["pub_date desc", "id"],
+    limit: HOME_ITEMS_LIMIT,
   });
-  return webResponseBuilder.getResponse({
-    getComponent: (content, jsonData, theme) => {
-      return <EdgeHomeApp jsonData={jsonData} theme={theme}/>;
-    },
+
+  const items = response.results.map((row) => serializeItemForFeed(row, {publicBucketUrl}));
+
+  const urlObject = new URL(request.url);
+  const canonicalUrl = `${urlObject.origin}/`;
+
+  const html = renderReactToHtml(
+    <HomePage channel={content.channel || {}} items={items} canonicalUrl={canonicalUrl} />,
+  );
+  return new Response(html, {
+    headers: {"content-type": "text/html; charset=utf-8"},
   });
 }

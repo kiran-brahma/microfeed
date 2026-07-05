@@ -99,7 +99,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 6.2 RSS: podcast (iTunes) + blog (basic) ✅ reviewed (registry rss config; type-filtered; legacy /rss reads new shape)
 - [x] 6.3a Type-prefixed routing + record-type templates ✅ reviewed
 - [ ] 6.3b Remove Mustache custom-code theming (6.3a)
-- [ ] 6.4 Aggregator web rendering: gallery + landing (6.3a, Phase 4)
+- [x] 6.4 Aggregator web rendering: gallery + landing + home ✅ reviewed
 - [ ] 6.5 Registry-generated OpenAPI spec (Phases 2,3,4)
 
 **37 tasks.** Phases 0→4 are the backbone (build in order). Phases 5 and 6 both sit on 2–4 and can run in parallel by two agents once Phase 4 is done.
