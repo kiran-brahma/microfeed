@@ -1,6 +1,8 @@
 # Content Type catalog — authoritative spec
 
-> Source of truth for the registry (`edge-src/registry/ContentTypeRegistry.js`). Mirrors master PRD (GitHub issue #1). Kept in-repo so offline implementation sessions have it. If this and issue #1 disagree, issue #1 wins — update this file.
+> **Canonical source of truth for field names** for the registry (`edge-src/registry/ContentTypeRegistry.js`) and all consumers (mapper, validation, CRUD, feeds, admin forms, OpenAPI). Kept in-repo so offline sessions have it.
+>
+> **Naming decision (2026-07, blessed):** the implemented field keys here are the legacy microfeed public-API names (`content_html`, `url`, `date_published_ms`, `image`, `_microfeed.itunes:*`, flat `filter_tags`/`content_types`/`sort`/`limit`). The master-PRD draft (GitHub issue #1) used aspirational names (`body`, `link`, `pub_date`, `cover_image`, `intro`, nested `filter{}`, flat `itunes_*`). **These implemented names are authoritative — this file wins over the issue #1 draft** (see issue #1 comment recording the decision). Reason: legacy-API compatibility, internal consistency, and no external consumers require the cosmetic rename.
 
 ## Conventions
 - **key** = public API / form field name (what payloads use).
