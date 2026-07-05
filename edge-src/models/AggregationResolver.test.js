@@ -218,6 +218,68 @@ describe("AggregationResolver", () => {
     }
   });
 
+  test("resolveFilter resolves a landing-style filter config without a saved row, matching resolve() on an equivalent landing_page", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const itemRepo = new ItemRepo(db);
+    const contentService = makeContentService(db);
+    const tagService = new TagService(db);
+    const resolver = new AggregationResolver(db);
+
+    try {
+      const tag1 = await tagService.create({name: "featured"});
+
+      const blogA = await createBlogArticle(contentService, itemRepo, "Blog A", {
+        tags: [tag1.id],
+        date_published_ms: 1000,
+      });
+      const blogB = await createBlogArticle(contentService, itemRepo, "Blog B", {
+        tags: [tag1.id],
+        date_published_ms: 2000,
+      });
+      await createPhoto(contentService, itemRepo, "Photo With Tag", {tags: [tag1.id]});
+
+      const filterConfig = {
+        content_types: ["blog_article"],
+        filter_tags: [tag1.id],
+        sort: "oldest_first",
+        limit: 2,
+      };
+
+      const landingRow = await createLandingPage(contentService, itemRepo, "Combined Landing 2", filterConfig);
+
+      const viaResolve = await resolver.resolve(landingRow);
+      const viaResolveFilter = await resolver.resolveFilter(filterConfig);
+
+      expect(viaResolveFilter.map((row) => row.id)).toEqual([blogA, blogB]);
+      expect(viaResolveFilter.map((row) => row.id)).toEqual(viaResolve.map((row) => row.id));
+    } finally {
+      db.close();
+    }
+  });
+
+  test("resolveFilter respects a custom statuses list", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const itemRepo = new ItemRepo(db);
+    const contentService = makeContentService(db);
+    const resolver = new AggregationResolver(db);
+
+    try {
+      const blog1 = await createBlogArticle(contentService, itemRepo, "Unlisted Blog");
+      await itemRepo.update(blog1, {status: STATUSES.UNLISTED});
+
+      const resolvedDefault = await resolver.resolveFilter({content_types: ["blog_article"]});
+      expect(resolvedDefault).toEqual([]);
+
+      const resolvedWithUnlisted = await resolver.resolveFilter(
+        {content_types: ["blog_article"]},
+        {statuses: [STATUSES.PUBLISHED, STATUSES.UNLISTED]},
+      );
+      expect(resolvedWithUnlisted.map((row) => row.id)).toEqual([blog1]);
+    } finally {
+      db.close();
+    }
+  });
+
   test("any other content_type resolves to an empty array", async () => {
     const db = createMigratedInMemoryDatabase();
     const itemRepo = new ItemRepo(db);

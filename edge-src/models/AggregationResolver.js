@@ -87,4 +87,16 @@ export default class AggregationResolver {
 
     return [];
   }
+
+  /**
+   * Resolve a landing-style filter config without a saved landing_page row.
+   * filterConfig = {content_types, filter_tags, sort, limit}.
+   */
+  async resolveFilter(filterConfig, {statuses = [STATUSES.PUBLISHED]} = {}) {
+    const syntheticRow = {
+      content_type: "landing_page",
+      data: JSON.stringify(filterConfig || {}),
+    };
+    return this._resolveLandingPage(syntheticRow, statuses, filterConfig || {});
+  }
 }

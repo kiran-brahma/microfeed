@@ -93,7 +93,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.4a Tag manager screen ✅ reviewed (admin tag endpoints + manager page + nav)
 - [x] 5.4b Tags widget — multiselect + inline add ✅ reviewed (wired into SchemaItemEditor)
 - [x] 5.5a Gallery curator ✅ reviewed (photo-list endpoint + member-id exposure + ordered curator)
-- [ ] 5.5b Landing filter builder (5.2, 4.4)
+- [x] 5.5b Landing filter builder ✅ reviewed (per-key widget override, resolveFilter + preview endpoint, filter_tags picker, live LandingPreview). **Phase 5 complete - all 37 tasks done.**
 
 ### Phase 6 — Public web + feeds (#8)  · needs Phases 2–4
 - [x] 6.1 FeedItemSerializer (pure, registry-driven) ✅ reviewed

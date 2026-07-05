@@ -1,6 +1,8 @@
 import React from "react";
 import FormRenderer from "../../../components/FormRenderer";
 import { mediaWidgets, tagsWidget, referenceWidget } from "../../../components/FormRenderer/widgets";
+import FilterTagsWidget from "../../../components/FormRenderer/widgets/FilterTagsWidget";
+import LandingPreview from "../LandingPreview";
 import { getFieldDefs } from "../../../../edge-src/registry/ContentTypeRegistry";
 import Requests from "../../../common/requests";
 import { showToast } from "../../../common/ToastUtils";
@@ -80,6 +82,7 @@ export default class SchemaItemEditor extends React.Component {
     const isEdit = !!item;
     const submitting = submitStatus === SUBMIT_STATUS__START;
     const fieldDefs = getFieldDefs(contentType);
+    const isLandingPage = contentType === "landing_page";
 
     return (
       <form className="grid grid-cols-12 gap-4" onSubmit={this.onSave}>
@@ -93,9 +96,15 @@ export default class SchemaItemEditor extends React.Component {
               value={payload}
               onChange={(nextPayload) => this.setState({ payload: nextPayload })}
               errors={errors}
-              widgets={{ ...mediaWidgets(publicBucketUrl), ...tagsWidget(), ...referenceWidget() }}
+              widgets={{
+                ...mediaWidgets(publicBucketUrl),
+                ...tagsWidget(),
+                ...referenceWidget(),
+                filter_tags: FilterTagsWidget,
+              }}
             />
           </div>
+          {isLandingPage && <LandingPreview payload={payload} />}
         </div>
         <div className="col-span-3">
           <div className="sticky top-8">

@@ -197,7 +197,7 @@ export default function FormRenderer({ fieldDefs, value, onChange, errors = [], 
   return (
     <div className="flex flex-col gap-4">
       {(fieldDefs || []).map((fieldDef) => {
-        const Widget = widgetMap[fieldDef.kind] || FallbackWidget;
+        const Widget = widgetMap[fieldDef.key] || widgetMap[fieldDef.kind] || FallbackWidget;
         const fieldError = (errors || []).find((err) => err.field === fieldDef.key);
         const fieldValue = value ? value[fieldDef.key] : undefined;
 

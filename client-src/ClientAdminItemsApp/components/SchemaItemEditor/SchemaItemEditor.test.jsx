@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SchemaItemEditor from "./index";
 import Requests from "../../../common/requests";
@@ -19,6 +19,7 @@ beforeEach(() => {
   Requests.axiosPost.mockReset();
   Requests.axiosPut.mockReset();
   Requests.axiosGet.mockResolvedValue({ data: { tags: [] } });
+  Requests.axiosPost.mockResolvedValue({ data: { items: [] } });
 });
 
 describe("SchemaItemEditor", () => {
@@ -93,5 +94,32 @@ describe("SchemaItemEditor", () => {
     await user.click(saveButton);
 
     expect(await screen.findByText("Title is required")).toBeInTheDocument();
+  });
+
+  test("landing_page: renders the LandingPreview beneath the form and posts the current payload to the preview endpoint", async () => {
+    render(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
+
+    await waitFor(() => {
+      expect(Requests.axiosPost).toHaveBeenCalledWith(
+        "/admin/ajax/aggregation/preview",
+        expect.any(Object)
+      );
+    });
+    expect(await screen.findByText(/no items match/i)).toBeInTheDocument();
+  });
+
+  test("landing_page: filter_tags uses the tag picker widget (loads tags) instead of the comma-separated fallback", async () => {
+    render(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
+
+    await waitFor(() => {
+      expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/tags");
+    });
+    expect(screen.queryByPlaceholderText("comma, separated, values")).not.toBeInTheDocument();
+  });
+
+  test("non-landing content types do not render the LandingPreview", () => {
+    render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+
+    expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
   });
 });

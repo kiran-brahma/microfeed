@@ -126,4 +126,44 @@ describe("FormRenderer", () => {
     expect(screen.getByTestId("my-tag-widget")).toBeInTheDocument();
     expect(screen.queryByText(/tags field.*coming soon/i)).not.toBeInTheDocument();
   });
+
+  test("kind-keyed widget still works when there is no per-key override for that field", () => {
+    const fieldDefs = getFieldDefs("landing_page");
+    function MyStringListWidget({ fieldDef }) {
+      return <div data-testid="kind-widget">kind widget for {fieldDef.key}</div>;
+    }
+
+    render(
+      <Wrapper
+        fieldDefs={fieldDefs}
+        initialValue={{ filter_tags: ["a"] }}
+        widgets={{ string_list: MyStringListWidget }}
+      />
+    );
+
+    expect(screen.getByTestId("kind-widget")).toBeInTheDocument();
+    expect(screen.getByText("kind widget for filter_tags")).toBeInTheDocument();
+  });
+
+  test("a per-key widget takes precedence over a kind-keyed widget for the same field", () => {
+    const fieldDefs = getFieldDefs("landing_page");
+    function KindWidget() {
+      return <div data-testid="kind-widget">kind widget</div>;
+    }
+    function KeyWidget({ fieldDef }) {
+      return <div data-testid="key-widget">key widget for {fieldDef.key}</div>;
+    }
+
+    render(
+      <Wrapper
+        fieldDefs={fieldDefs}
+        initialValue={{ filter_tags: ["a"] }}
+        widgets={{ string_list: KindWidget, filter_tags: KeyWidget }}
+      />
+    );
+
+    expect(screen.getByTestId("key-widget")).toBeInTheDocument();
+    expect(screen.getByText("key widget for filter_tags")).toBeInTheDocument();
+    expect(screen.queryByTestId("kind-widget")).not.toBeInTheDocument();
+  });
 });
