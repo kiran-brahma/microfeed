@@ -205,24 +205,11 @@ a {
 }
 
 /*
-  Make Quill styling happy
+  Rich text editor (TipTap)
  */
-.quill .ql-container {
+.lh-rich-editor-content {
   height: auto;
-}
-
-.ql-container .ql-editor {
-  height: auto;
-  min-height:200px;
+  min-height: 200px;
   max-height: 500px;
   overflow: auto;
-  /* @apply min-h-screen; */
-}
-
-.ql-toolbar {
-  @apply rounded-tl rounded-tr;
-}
-
-.ql-container {
-  @apply rounded-bl rounded-br;
 }

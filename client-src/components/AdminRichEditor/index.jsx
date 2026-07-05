@@ -1,8 +1,7 @@
 import React from "react";
-import 'react-quill/dist/quill.snow.css';
 import AdminRadio from "../AdminRadio";
 import AdminTextarea from "../AdminTextarea";
-import RichEditorQuill from "./component/RichEditorQuill";
+import RichEditorTiptap from "./component/RichEditorTiptap";
 
 export default class AdminRichEditor extends React.Component {
   constructor(props) {
@@ -33,7 +32,7 @@ export default class AdminRichEditor extends React.Component {
             onChange={(e) => this.setState({mode: e.target.value})}
           />
         </div>
-        {mode === 'rich' ? <RichEditorQuill
+        {mode === 'rich' ? <RichEditorTiptap
           value={value}
           onChange={onChange}
           extra={extra}

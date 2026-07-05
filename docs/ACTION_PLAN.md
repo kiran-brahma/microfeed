@@ -82,7 +82,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 ### Phase 5 — Admin UI (#7)  · needs Phases 2–4
 - [x] 5.0 React test infra (jsdom + Testing Library, per-file opt-in) ✅ reviewed
 - [x] 5.1a Upgrade @headlessui/react → v2 ✅ reviewed
-- [ ] 5.1b Replace react-quill → TipTap
+- [x] 5.1b Replace react-quill → TipTap ✅ reviewed
 - [ ] 5.1c Restyle shared admin components (5.1a)
 - [ ] 5.2 Schema-driven FormRenderer (core + simple widgets) (Phase 2, 5.1)
 - [ ] 5.3a Media/image upload widget (5.2)

@@ -1,5 +1,4 @@
 import React from "react";
-import {Quill} from "react-quill";
 import {FileUploader} from "react-drag-drop-files";
 import AdminDialog from "../../../AdminDialog";
 import AdminRadio from "../../../AdminRadio";
@@ -121,14 +120,13 @@ export default class RichEditorMediaDialog extends React.Component {
   }
 
   insertMedia() {
-    const {quill, quillSelection, mediaType} = this.props;
-    if (!quill) {
+    const {onInsert, mediaType} = this.props;
+    if (!onInsert) {
       return;
     }
     const {url} = this.state;
     if (url) {
-      const index = quillSelection ? quillSelection.index : 0;
-      quill.insertEmbed(index, mediaType, url, Quill.sources.USER);
+      onInsert(url, mediaType);
       this.setState({url: null});
     }
   }
