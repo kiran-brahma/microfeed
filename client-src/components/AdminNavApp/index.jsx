@@ -9,6 +9,7 @@ import {
   ListBulletIcon,
   PencilSquareIcon,
   ArrowLeftOnRectangleIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import {ADMIN_URLS} from "../../../common-src/StringUtils";
 import {NAV_ITEMS, NAV_ITEMS_DICT, OUR_BRAND} from "../../../common-src/Constants";
@@ -103,6 +104,14 @@ export default class AdminNavApp extends React.Component {
               navId={NAV_ITEMS.ALL_ITEMS}
               currentId={currentPage}
               Icon={ListBulletIcon}
+              disabled={!onboardingResult.requiredOk}
+            />
+            <NavItem
+              url={ADMIN_URLS.tags()}
+              title={NAV_ITEMS_DICT[NAV_ITEMS.TAGS].name}
+              navId={NAV_ITEMS.TAGS}
+              currentId={currentPage}
+              Icon={TagIcon}
               disabled={!onboardingResult.requiredOk}
             />
             <NavItem

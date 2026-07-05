@@ -3,8 +3,12 @@
 Copy-paste one block per task into a fresh Sonnet session. One task = one session. Companion: [ACTION_PLAN.md](./ACTION_PLAN.md).
 
 ## Shared rules (every task obeys these)
+- **Branch: work on `rebuild/cms` only. Never commit to `main`.** Deploy triggers on push to `main`; the rebuild stays off `main` until v1 is complete + fully checked, then merges. Commit per task on `rebuild/cms`.
 - Repo: `microfeed`. Issues on fork `kiran-brahma/microfeed`. **Read issue #1 (master PRD) + the task's epic issue before coding.** All decisions are settled there — do not re-decide; if something is genuinely undecided, STOP and ask.
+- **Content-type field spec: [`docs/CONTENT_TYPES.md`](docs/CONTENT_TYPES.md)** — authoritative in-repo copy of the type/field/target catalog (use this if GitHub issue #1 is unreachable). Do NOT infer field sets from old editor code.
 - **Tests-first:** write the named failing tests, run, confirm RED, then implement to GREEN. Run `yarn test` — everything green before you stop.
+- **React component tests:** add `/** @jest-environment jsdom */` at the top of the file; use @testing-library/react.
+- **Dep installs:** use `corepack yarn@4.9.2 add …` (plain yarn = classic 1.22, corrupts the berry lockfile). After ANY install, rebuild the native addon for Node 22: `fnm exec --using 22 -- corepack yarn@4.9.2 rebuild better-sqlite3` (installs under Node 24 break its ABI and fail DB tests).
 - Touch **only** the files this task needs. No scope creep, no drive-by refactors.
 - SQL: always parameterized (`?` binds), never string-interpolate user values.
 - When code-complete + green, STOP and hand to the **Reviewer prompt** (bottom of this file). Fix findings, then the task is done.
@@ -38,6 +42,10 @@ Copy-paste one block per task into a fresh Sonnet session. One task = one sessio
 
 ### 1.4 — Retire FeedDb internals (needs 1.3)
 > Implement task 1.4 in issue #3. Rewire existing callers (getContent/putContent/feed reads) to the repositories; remove the hand-built SQL/query-DSL from `FeedDb`. Tests-first: existing feed read/write paths still pass (add handler-level tests if missing). No unparameterized SQL remains. Shared rules apply.
+
+### 1.4b — Async-D1 fix (BLOCKING — review finding)
+> Fix a production-breaking bug in the Phase 1 data layer. Cloudflare D1 statement methods `.all()`, `.first()`, `.run()` and `db.batch()` all return Promises, but `BaseRepo`, `ItemRepo`, and `FeedDb` call them synchronously (e.g. `BaseRepo.list()` returns `.all()` unawaited; `FeedDb.getContent` does `this.channelRepo.getPrimaryPublished()` and `this.settingsRepo.listAll().results` with no await). Tests pass only because the better-sqlite3 D1-substitute's `run/all/first` are synchronous — masking the missing awaits.
+> Tests-first: (1) in `test-utils/d1-substitute.js` make `run()`, `all()`, and `first()` `async` (return Promises) so the double matches D1; run the suite and confirm it goes RED where awaits are missing. (2) Then make every consumer correct: `BaseRepo` methods (`list`, `getFirst`, `getById`, `insert`, `update`, `upsert`) `async` + `await` the statement call; `ItemRepo.listPaginated` `async` + `await` its `list`; `FeedDb.getContent`, `_getContent`, `_putChannelToContent`, `_updateOrAddSetting`, `_putItemToContent`, `getPrimaryPublished`/`listAll` call sites — add `await` everywhere a repo/statement is used. Update Paginator only if it touches statement results (it takes plain rows, so likely unchanged). Green the suite. Do NOT weaken the harness back to sync. Shared rules apply.
 
 ---
 

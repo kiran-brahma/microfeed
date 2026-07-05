@@ -1,0 +1,147 @@
+/** @jest-environment jsdom */
+import React from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import GalleryCurator from "./GalleryCurator";
+import FormRenderer from "../index";
+import { referenceWidget } from "./index";
+import { getFieldDefs } from "../../../../edge-src/registry/ContentTypeRegistry";
+import Requests from "../../../common/requests";
+
+jest.mock("../../../common/requests", () => ({
+  __esModule: true,
+  default: {
+    axiosGet: jest.fn(),
+  },
+}));
+
+const PHOTOS = [
+  { id: "p1", content_type: "photo", title: "Photo One", image: "https://cdn.example.com/one.jpg" },
+  { id: "p2", content_type: "photo", title: "Photo Two", image: "https://cdn.example.com/two.jpg" },
+  { id: "p3", content_type: "photo", title: "Photo Three", image: "https://cdn.example.com/three.jpg" },
+];
+
+beforeEach(() => {
+  Requests.axiosGet.mockReset();
+  Requests.axiosGet.mockResolvedValue({ data: { items: PHOTOS } });
+});
+
+describe("GalleryCurator", () => {
+  test("renders current members (value:[p1,p2]) in order", async () => {
+    const fieldDef = { key: "members", kind: "reference", label: "Members" };
+    const handleChange = jest.fn();
+
+    render(
+      <GalleryCurator fieldDef={fieldDef} value={["p1", "p2"]} onChange={handleChange} error={null} />
+    );
+
+    expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type=photo");
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+
+    const items = screen.getAllByTestId("gallery-curator-member");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Photo One");
+    expect(items[1]).toHaveTextContent("Photo Two");
+  });
+
+  test("Move-down on p1 calls onChange([p2, p1])", async () => {
+    const user = userEvent.setup();
+    const fieldDef = { key: "members", kind: "reference", label: "Members" };
+    const handleChange = jest.fn();
+
+    render(
+      <GalleryCurator fieldDef={fieldDef} value={["p1", "p2"]} onChange={handleChange} error={null} />
+    );
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+
+    const items = screen.getAllByTestId("gallery-curator-member");
+    const moveDownButton = items[0].querySelector('[aria-label="Move down"]');
+    await user.click(moveDownButton);
+
+    expect(handleChange).toHaveBeenCalledWith(["p2", "p1"]);
+  });
+
+  test("Move-up on p2 calls onChange([p2, p1])", async () => {
+    const user = userEvent.setup();
+    const fieldDef = { key: "members", kind: "reference", label: "Members" };
+    const handleChange = jest.fn();
+
+    render(
+      <GalleryCurator fieldDef={fieldDef} value={["p1", "p2"]} onChange={handleChange} error={null} />
+    );
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+
+    const items = screen.getAllByTestId("gallery-curator-member");
+    const moveUpButton = items[1].querySelector('[aria-label="Move up"]');
+    await user.click(moveUpButton);
+
+    expect(handleChange).toHaveBeenCalledWith(["p2", "p1"]);
+  });
+
+  test("Remove p1 calls onChange([p2])", async () => {
+    const user = userEvent.setup();
+    const fieldDef = { key: "members", kind: "reference", label: "Members" };
+    const handleChange = jest.fn();
+
+    render(
+      <GalleryCurator fieldDef={fieldDef} value={["p1", "p2"]} onChange={handleChange} error={null} />
+    );
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+
+    const items = screen.getAllByTestId("gallery-curator-member");
+    const removeButton = items[0].querySelector('[aria-label="Remove"]');
+    await user.click(removeButton);
+
+    expect(handleChange).toHaveBeenCalledWith(["p2"]);
+  });
+
+  test("Add p3 (not already a member) calls onChange([...current, p3])", async () => {
+    const user = userEvent.setup();
+    const fieldDef = { key: "members", kind: "reference", label: "Members" };
+    const handleChange = jest.fn();
+
+    render(
+      <GalleryCurator fieldDef={fieldDef} value={["p1", "p2"]} onChange={handleChange} error={null} />
+    );
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+
+    const addSelect = screen.getByTestId("gallery-curator-add-select");
+    await user.selectOptions(addSelect, "p3");
+
+    expect(handleChange).toHaveBeenCalledWith(["p1", "p2", "p3"]);
+  });
+
+  test("shows the field label and error beneath the widget", async () => {
+    const fieldDef = { key: "members", kind: "reference", label: "Members", required: true };
+    const error = { field: "members", message: "Members are invalid" };
+
+    render(<GalleryCurator fieldDef={fieldDef} value={[]} onChange={jest.fn()} error={error} />);
+
+    expect(screen.getByText("Members")).toBeInTheDocument();
+    expect(screen.getByText("Members are invalid")).toBeInTheDocument();
+    await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalled());
+  });
+
+  test("via FormRenderer with widgets={referenceWidget()} the members field renders the real GalleryCurator (not the fallback placeholder)", async () => {
+    const fieldDefs = getFieldDefs("gallery");
+
+    render(
+      <FormRenderer
+        fieldDefs={fieldDefs}
+        value={{ members: ["p1"] }}
+        onChange={jest.fn()}
+        widgets={referenceWidget()}
+      />
+    );
+
+    await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type=photo"));
+    expect(screen.queryByText(/reference field.*coming soon/i)).not.toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getAllByText("Photo One").length).toBeGreaterThan(0));
+  });
+});

@@ -4,7 +4,7 @@ import {OUR_BRAND} from "../../../common-src/Constants";
 
 export default class AdminItemsEditApp extends React.Component {
   render() {
-    const {feedContent, itemId, onboardingResult} = this.props;
+    const {feedContent, itemId, contentType, onboardingResult} = this.props;
     return (
       <AdminWholeHtml
         title={`Edit item (id = ${itemId}) | ${OUR_BRAND.domain}`}
@@ -14,7 +14,7 @@ export default class AdminItemsEditApp extends React.Component {
         feedContent={feedContent}
         onboardingResult={onboardingResult}
       >
-        <div id="lh-data-params" data-item-id={itemId} />
+        <div id="lh-data-params" data-item-id={itemId} data-content-type={contentType} />
       </AdminWholeHtml>
     );
   }
