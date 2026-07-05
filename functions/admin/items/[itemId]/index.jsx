@@ -35,6 +35,9 @@ export async function onRequestGet({env, params, request}) {
       tagIds: row.tagIds || [],
       members: row.members || [],
     });
+    if (content.item.content_type === 'gallery') {
+      content.item.members = (row.members || []).map((m) => m.id);
+    }
   }
 
   const onboardingChecker = new OnboardingChecker(content, request, env);

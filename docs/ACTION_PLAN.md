@@ -92,7 +92,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.3d Bulk actions in list ✅ reviewed (admin bulk endpoint + multi-select bar)
 - [x] 5.4a Tag manager screen ✅ reviewed (admin tag endpoints + manager page + nav)
 - [x] 5.4b Tags widget — multiselect + inline add ✅ reviewed (wired into SchemaItemEditor)
-- [ ] 5.5a Gallery curator (5.2, 4.3)
+- [x] 5.5a Gallery curator ✅ reviewed (photo-list endpoint + member-id exposure + ordered curator)
 - [ ] 5.5b Landing filter builder (5.2, 4.4)
 
 ### Phase 6 — Public web + feeds (#8)  · needs Phases 2–4

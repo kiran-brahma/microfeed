@@ -2,6 +2,7 @@ import React from "react";
 import ImageUploadWidget from "./ImageUploadWidget";
 import MediaUploadWidget from "./MediaUploadWidget";
 import TagsWidget from "./TagsWidget";
+import GalleryCurator from "./GalleryCurator";
 
 export function mediaWidgets(publicBucketUrl) {
   return {
@@ -16,4 +17,10 @@ export function tagsWidget() {
   };
 }
 
-export { ImageUploadWidget, MediaUploadWidget, TagsWidget };
+export function referenceWidget() {
+  return {
+    reference: GalleryCurator,
+  };
+}
+
+export { ImageUploadWidget, MediaUploadWidget, TagsWidget, GalleryCurator };

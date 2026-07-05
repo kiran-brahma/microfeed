@@ -3,7 +3,7 @@ import ItemRepo from "../../../../edge-src/models/ItemRepo";
 import ContentService from "../../../../edge-src/models/ContentService";
 import {STATUSES} from "../../../../common-src/Constants";
 
-import {onRequestPost as createItem} from "./index.jsx";
+import {onRequestPost as createItem, onRequestGet as listItems} from "./index.jsx";
 import {onRequestPut as updateItem, onRequestDelete as deleteItem} from "./[itemId]/index.jsx";
 
 function makeData(db) {
@@ -175,6 +175,67 @@ describe("admin items ajax handlers", () => {
 
       const missingResponse = await deleteItem({params: {itemId: "does-not-exist"}, data, request: undefined, env: {}});
       expect(missingResponse.status).toBe(404);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("GET with ?content_type=photo returns 200 with only matching, non-deleted photos", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {data} = makeData(db);
+
+    try {
+      const photo1Response = await createItem({
+        request: jsonRequest({
+          content_type: "photo",
+          status: "published",
+          title: "Photo One",
+          image: "https://cdn.example.com/one.jpg",
+        }),
+        data,
+        env: {},
+        params: {},
+      });
+      const {id: photo1Id} = await photo1Response.json();
+
+      const photo2Response = await createItem({
+        request: jsonRequest({
+          content_type: "photo",
+          status: "published",
+          title: "Photo Two",
+          image: "https://cdn.example.com/two.jpg",
+        }),
+        data,
+        env: {},
+        params: {},
+      });
+      const {id: photo2Id} = await photo2Response.json();
+
+      await createItem({
+        request: jsonRequest({
+          content_type: "blog_article",
+          status: "published",
+          title: "Not A Photo",
+          content_html: "<p>Body</p>",
+        }),
+        data,
+        env: {},
+        params: {},
+      });
+
+      const request = new Request("https://site.test/admin/ajax/items?content_type=photo", {
+        method: "GET",
+      });
+      const response = await listItems({request, data, env: {}, params: {}});
+      expect(response.status).toBe(200);
+      const body = await response.json();
+
+      expect(body.items).toHaveLength(2);
+      const ids = body.items.map((item) => item.id);
+      expect(ids.sort()).toEqual([photo1Id, photo2Id].sort());
+      body.items.forEach((item) => {
+        expect(item.content_type).toBe("photo");
+      });
     } finally {
       db.close();
     }

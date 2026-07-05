@@ -1,3 +1,6 @@
+import {STATUSES} from "../../../../common-src/Constants";
+import {serializeItemForFeed} from "../../../../edge-src/models/FeedItemSerializer";
+
 function jsonResponse(body, status) {
   return new Response(JSON.stringify(body), {
     headers: {
@@ -5,6 +8,24 @@ function jsonResponse(body, status) {
     },
     status,
   });
+}
+
+export async function onRequestGet({ request, data }) {
+  const url = new URL(request.url);
+  const contentType = url.searchParams.get('content_type');
+
+  const { feedCrud } = data;
+  const queryKwargs = {
+    'status__!=': STATUSES.DELETED,
+  };
+  if (contentType) {
+    queryKwargs.content_type = contentType;
+  }
+
+  const response = await feedCrud.itemRepo.list({ queryKwargs });
+  const items = (response.results || []).map((row) => serializeItemForFeed(row));
+
+  return jsonResponse({ items }, 200);
 }
 
 export async function onRequestPost({ request, data }) {
