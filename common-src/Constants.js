@@ -162,6 +162,7 @@ export const NAV_ITEMS = {
   EDIT_CHANNEL: 'edit_channel',
   NEW_ITEM: 'new_item',
   ALL_ITEMS: 'all_items',
+  TAGS: 'tags',
   SETTINGS: 'settings',
 };
 
@@ -177,6 +178,9 @@ export const NAV_ITEMS_DICT = {
   },
   [NAV_ITEMS.ALL_ITEMS]: {
     name: 'See all items',
+  },
+  [NAV_ITEMS.TAGS]: {
+    name: 'Tags',
   },
   [NAV_ITEMS.SETTINGS]: {
     name: 'Settings',

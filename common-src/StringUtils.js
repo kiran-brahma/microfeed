@@ -238,9 +238,12 @@ export const ADMIN_URLS = {
   newItem: (baseUrl = '/') => urlJoin(baseUrl, `${ADMIN_HOME}/items/new/`),
   allItems: () => `${ADMIN_HOME}/items/list/`,
   settings: () => `${ADMIN_HOME}/settings/`,
+  tags: () => `${ADMIN_HOME}/tags/`,
   logout: () => '/cdn-cgi/access/logout',
 
   ajaxFeed: () => `${ADMIN_HOME}/ajax/feed/`,
+  ajaxTags: () => `${ADMIN_HOME}/ajax/tags/`,
+  ajaxTag: (tagId) => `${ADMIN_HOME}/ajax/tags/${tagId}/`,
 };
 
 /**

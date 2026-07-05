@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+const axiosGet = (url) => {
+  return axios.get(url, {
+  });
+};
+
 const axiosPost = (url, bodyDict) => {
   return axios.post(url, bodyDict, {
   });
@@ -7,6 +12,11 @@ const axiosPost = (url, bodyDict) => {
 
 const axiosPut = (url, bodyDict) => {
   return axios.put(url, bodyDict, {
+  });
+};
+
+const axiosDelete = (url) => {
+  return axios.delete(url, {
   });
 };
 
@@ -53,8 +63,10 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
 }
 
 const Requests = {
+  axiosGet,
   axiosPost,
   axiosPut,
+  axiosDelete,
   upload: uploadFile,
 };
 
