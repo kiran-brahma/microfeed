@@ -432,4 +432,160 @@ describe("ContentService", () => {
       }
     });
   });
+
+  describe("bulk operations", () => {
+    async function createTwoItems(service) {
+      const idA = await service.create("blog_article", {
+        status: "published",
+        title: "Bulk Item A",
+        content_html: "<p>A</p>",
+      });
+      const idB = await service.create("blog_article", {
+        status: "published",
+        title: "Bulk Item B",
+        content_html: "<p>B</p>",
+      });
+      return [idA, idB];
+    }
+
+    test("bulkPublish sets status=PUBLISHED for existing ids and skips unknown ids", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const [idA, idB] = await createTwoItems(service);
+        await service.bulkUnpublish([idA, idB]);
+
+        const result = await service.bulkPublish([idA, idB, "missing"]);
+
+        expect(result.succeeded.slice().sort()).toEqual([idA, idB].sort());
+        expect(result.skipped).toEqual([{id: "missing", reason: "not found"}]);
+
+        const rowA = await itemRepo.getById(idA);
+        const rowB = await itemRepo.getById(idB);
+        expect(rowA.status).toEqual(STATUSES.PUBLISHED);
+        expect(rowB.status).toEqual(STATUSES.PUBLISHED);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("bulkUnpublish sets status=UNPUBLISHED for existing ids and skips unknown ids", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const [idA, idB] = await createTwoItems(service);
+
+        const result = await service.bulkUnpublish([idA, idB, "missing"]);
+
+        expect(result.succeeded.slice().sort()).toEqual([idA, idB].sort());
+        expect(result.skipped).toEqual([{id: "missing", reason: "not found"}]);
+
+        const rowA = await itemRepo.getById(idA);
+        const rowB = await itemRepo.getById(idB);
+        expect(rowA.status).toEqual(STATUSES.UNPUBLISHED);
+        expect(rowB.status).toEqual(STATUSES.UNPUBLISHED);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("bulkDelete soft-deletes existing ids and skips unknown ids", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const [idA, idB] = await createTwoItems(service);
+
+        const result = await service.bulkDelete([idA, idB, "missing"]);
+
+        expect(result.succeeded.slice().sort()).toEqual([idA, idB].sort());
+        expect(result.skipped).toEqual([{id: "missing", reason: "not found"}]);
+
+        const rowA = await itemRepo.getById(idA);
+        const rowB = await itemRepo.getById(idB);
+        expect(rowA.status).toEqual(STATUSES.DELETED);
+        expect(rowB.status).toEqual(STATUSES.DELETED);
+      } finally {
+        db.close();
+      }
+    });
+
+    async function seedTags(db, tagIds) {
+      for (const tagId of tagIds) {
+        await db.prepare(
+          "INSERT INTO tags (id, slug, name) VALUES (?, ?, ?)",
+        ).bind(tagId, tagId, tagId).run();
+      }
+    }
+
+    test("bulkTag inserts item_tags rows for existing ids, skips unknown ids, and is idempotent", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service} = makeService(db);
+
+      try {
+        const [idA] = await createTwoItems(service);
+        await seedTags(db, ["tag_1", "tag_2"]);
+
+        const result = await service.bulkTag([idA, "missing"], ["tag_1", "tag_2"]);
+
+        expect(result.succeeded).toEqual([idA]);
+        expect(result.skipped).toEqual([{id: "missing", reason: "not found"}]);
+
+        const rows = await db.prepare(
+          "SELECT * FROM item_tags WHERE item_id = ?",
+        ).bind(idA).all();
+        expect(rows.results).toHaveLength(2);
+        expect(rows.results.map((row) => row.tag_id).sort()).toEqual(["tag_1", "tag_2"]);
+
+        // Calling again is idempotent: no duplicate rows, no error.
+        const secondResult = await service.bulkTag([idA, "missing"], ["tag_1", "tag_2"]);
+        expect(secondResult.succeeded).toEqual([idA]);
+        expect(secondResult.skipped).toEqual([{id: "missing", reason: "not found"}]);
+
+        const rowsAfter = await db.prepare(
+          "SELECT * FROM item_tags WHERE item_id = ?",
+        ).bind(idA).all();
+        expect(rowsAfter.results).toHaveLength(2);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("bulkTag with empty tagIds reports success with no inserted rows", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service} = makeService(db);
+
+      try {
+        const [idA] = await createTwoItems(service);
+
+        const result = await service.bulkTag([idA], []);
+
+        expect(result.succeeded).toEqual([idA]);
+        expect(result.skipped).toEqual([]);
+
+        const rows = await db.prepare(
+          "SELECT * FROM item_tags WHERE item_id = ?",
+        ).bind(idA).all();
+        expect(rows.results).toHaveLength(0);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("bulk operations return empty succeeded/skipped for empty ids", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service} = makeService(db);
+
+      try {
+        expect(await service.bulkPublish([])).toEqual({succeeded: [], skipped: []});
+        expect(await service.bulkUnpublish([])).toEqual({succeeded: [], skipped: []});
+        expect(await service.bulkDelete([])).toEqual({succeeded: [], skipped: []});
+        expect(await service.bulkTag([], ["tag_1"])).toEqual({succeeded: [], skipped: []});
+      } finally {
+        db.close();
+      }
+    });
+  });
 });

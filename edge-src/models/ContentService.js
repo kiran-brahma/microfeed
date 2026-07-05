@@ -341,4 +341,81 @@ export default class ContentService extends FeedCrudManager {
 
     return itemId;
   }
+
+  async _resolveExistingIds(ids) {
+    if (!ids || ids.length === 0) {
+      return {existingIds: [], skipped: []};
+    }
+
+    const response = await this.itemRepo.list({
+      queryKwargs: {
+        id__in: ids,
+      },
+    });
+    const existingIdSet = new Set(response.results.map((row) => row.id));
+
+    const existingIds = [];
+    const skipped = [];
+    ids.forEach((id) => {
+      if (existingIdSet.has(id)) {
+        existingIds.push(id);
+      } else {
+        skipped.push({id, reason: "not found"});
+      }
+    });
+
+    return {existingIds, skipped};
+  }
+
+  async _bulkSetStatus(ids, status) {
+    const {existingIds, skipped} = await this._resolveExistingIds(ids);
+
+    if (existingIds.length === 0) {
+      return {succeeded: [], skipped};
+    }
+
+    const db = this.itemRepo.db;
+    await db.batch(
+      existingIds.map((id) => this.itemRepo.buildUpdateStatement(id, {status})),
+    );
+
+    return {succeeded: existingIds, skipped};
+  }
+
+  async bulkPublish(ids) {
+    return this._bulkSetStatus(ids, STATUSES.PUBLISHED);
+  }
+
+  async bulkUnpublish(ids) {
+    return this._bulkSetStatus(ids, STATUSES.UNPUBLISHED);
+  }
+
+  async bulkDelete(ids) {
+    return this._bulkSetStatus(ids, STATUSES.DELETED);
+  }
+
+  async bulkTag(ids, tagIds = []) {
+    const {existingIds, skipped} = await this._resolveExistingIds(ids);
+
+    if (existingIds.length === 0) {
+      return {succeeded: [], skipped};
+    }
+
+    if (tagIds.length > 0) {
+      const db = this.itemRepo.db;
+      const statements = [];
+      existingIds.forEach((id) => {
+        tagIds.forEach((tagId) => {
+          statements.push(
+            db.prepare(
+              "INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?) ON CONFLICT(item_id, tag_id) DO NOTHING",
+            ).bind(id, tagId),
+          );
+        });
+      });
+      await db.batch(statements);
+    }
+
+    return {succeeded: existingIds, skipped};
+  }
 }

@@ -66,9 +66,9 @@ Do top-to-bottom. Deps in parens must be merged first.
 
 ### Phase 3 — CRUD seam (#5)  · needs Phases 1–2
 - [x] 3.1 ContentService create/update + strict validation ✅ reviewed (validation gates writes; per-type slug; deep-merge+revalidate; middleware swap keeps upsertItem via inheritance)
-- [ ] 3.2 Soft delete + restore (3.1)
-- [ ] 3.3 Hard purge + R2 media cleanup (3.2; links need Phase 4)
-- [ ] 3.4 Bulk operations (3.1; bulkTag needs Phase 4)
+- [x] 3.2 Soft delete + restore (3.1) ✅ reviewed
+- [x] 3.3 Hard purge + R2 media cleanup (3.2) ✅ reviewed (fixed MediaStore double-prefix R2-key bug in review)
+- [x] 3.4 Bulk operations (3.1) ✅ reviewed (publish/unpublish/delete/tag, per-id outcome, transactional; tag-existence validation deferred to Phase 4)
 - [ ] 3.5 Type-aware API handlers (3.1–3.4)
 
 ### Phase 4 — Taxonomy & relations (#6)  · needs Phases 1,3
