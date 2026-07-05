@@ -85,7 +85,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.1b Replace react-quill → TipTap ✅ reviewed
 - [x] 5.1c Restyle shared admin components ✅ reviewed (+fixed pre-existing TipTap jsdom flake via ProseMirror polyfills)
 - [x] 5.2 Schema-driven FormRenderer (core + simple widgets) ✅ reviewed (override widget seam for media/tags/reference)
-- [ ] 5.3a Media/image upload widget (5.2)
+- [x] 5.3a Media/image upload widget ✅ reviewed
 - [ ] 5.3b Type picker + new/edit flow (5.2, 5.3a, Phase 3)
 - [ ] 5.3c Item list + filtering (Phases 3,4)
 - [ ] 5.3d Bulk actions in list (5.3c, 3.4)
