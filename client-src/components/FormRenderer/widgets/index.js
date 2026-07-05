@@ -1,6 +1,7 @@
 import React from "react";
 import ImageUploadWidget from "./ImageUploadWidget";
 import MediaUploadWidget from "./MediaUploadWidget";
+import TagsWidget from "./TagsWidget";
 
 export function mediaWidgets(publicBucketUrl) {
   return {
@@ -9,4 +10,10 @@ export function mediaWidgets(publicBucketUrl) {
   };
 }
 
-export { ImageUploadWidget, MediaUploadWidget };
+export function tagsWidget() {
+  return {
+    tags: TagsWidget,
+  };
+}
+
+export { ImageUploadWidget, MediaUploadWidget, TagsWidget };

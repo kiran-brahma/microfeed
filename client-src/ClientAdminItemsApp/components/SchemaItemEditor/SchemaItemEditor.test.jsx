@@ -8,14 +8,17 @@ import Requests from "../../../common/requests";
 jest.mock("../../../common/requests", () => ({
   __esModule: true,
   default: {
+    axiosGet: jest.fn(),
     axiosPost: jest.fn(),
     axiosPut: jest.fn(),
   },
 }));
 
 beforeEach(() => {
+  Requests.axiosGet.mockReset();
   Requests.axiosPost.mockReset();
   Requests.axiosPut.mockReset();
+  Requests.axiosGet.mockResolvedValue({ data: { tags: [] } });
 });
 
 describe("SchemaItemEditor", () => {

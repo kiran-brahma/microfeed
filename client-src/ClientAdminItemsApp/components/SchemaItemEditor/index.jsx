@@ -1,6 +1,6 @@
 import React from "react";
 import FormRenderer from "../../../components/FormRenderer";
-import { mediaWidgets } from "../../../components/FormRenderer/widgets";
+import { mediaWidgets, tagsWidget } from "../../../components/FormRenderer/widgets";
 import { getFieldDefs } from "../../../../edge-src/registry/ContentTypeRegistry";
 import Requests from "../../../common/requests";
 import { showToast } from "../../../common/ToastUtils";
@@ -93,7 +93,7 @@ export default class SchemaItemEditor extends React.Component {
               value={payload}
               onChange={(nextPayload) => this.setState({ payload: nextPayload })}
               errors={errors}
-              widgets={mediaWidgets(publicBucketUrl)}
+              widgets={{ ...mediaWidgets(publicBucketUrl), ...tagsWidget() }}
             />
           </div>
         </div>
