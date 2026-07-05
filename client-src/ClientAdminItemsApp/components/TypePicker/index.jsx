@@ -2,7 +2,7 @@ import React from "react";
 import { listTypes } from "../../../../edge-src/registry/ContentTypeRegistry";
 import { ADMIN_URLS } from "../../../../common-src/StringUtils";
 
-function friendlyLabel(typeName) {
+export function friendlyLabel(typeName) {
   return typeName
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
