@@ -1,6 +1,7 @@
 import ContentService from "./ContentService";
 import ItemRepo from "./ItemRepo";
 import TagLinkRepo from "./TagLinkRepo";
+import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
 import TagService from "./TagService";
 import {STATUSES} from "../../common-src/Constants";
 
@@ -11,8 +12,19 @@ function makeService(db) {
   return {
     itemRepo,
     tagLinkRepo: new TagLinkRepo(db),
+    relationRepo: new RelationRepo(db),
     service: new ContentService({}, {itemRepo}, {url: "https://example.com/"}),
   };
+}
+
+async function createPhoto(service, itemRepo, title) {
+  await service.create("photo", {
+    status: "published",
+    title,
+    image: `https://cdn.example.com/images/${title}.png`,
+  });
+  const row = await itemRepo.getByTypeAndSlug("photo", title.toLowerCase().replace(/\s+/g, "-"));
+  return row.id;
 }
 
 async function createTags(db, names) {
@@ -663,6 +675,187 @@ describe("ContentService", () => {
         expect(await service.bulkUnpublish([])).toEqual({succeeded: [], skipped: []});
         expect(await service.bulkDelete([])).toEqual({succeeded: [], skipped: []});
         expect(await service.bulkTag([], ["tag_1"])).toEqual({succeeded: [], skipped: []});
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("reference field / gallery membership", () => {
+    test("create with members writes ordered item_relations rows and keeps members out of the data blob", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, relationRepo, service} = makeService(db);
+
+      try {
+        const photo1 = await createPhoto(service, itemRepo, "Photo One");
+        const photo2 = await createPhoto(service, itemRepo, "Photo Two");
+
+        const galleryId = await service.create("gallery", {
+          status: "published",
+          title: "My Gallery",
+          members: [photo1, photo2],
+        });
+
+        expect(typeof galleryId).toBe("string");
+
+        const memberIds = await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER);
+        expect(memberIds).toEqual([photo1, photo2]);
+
+        const rows = await db.prepare(
+          "SELECT * FROM item_relations WHERE parent_item_id = ?",
+        ).bind(galleryId).all();
+        expect(rows.results).toHaveLength(2);
+
+        const galleryRow = await itemRepo.getById(galleryId);
+        expect(JSON.parse(galleryRow.data)).not.toHaveProperty("members");
+      } finally {
+        db.close();
+      }
+    });
+
+    test("create rejects a member id that is not a photo and writes nothing", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const blogId = await service.create("blog_article", {
+          status: "published",
+          title: "Not A Photo",
+          content_html: "<p>Body</p>",
+        });
+
+        const result = await service.create("gallery", {
+          status: "published",
+          title: "Bad Gallery",
+          members: [blogId],
+        });
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "members"}),
+          ]),
+        });
+
+        const galleries = await itemRepo.list({queryKwargs: {content_type: "gallery"}});
+        expect(galleries.results).toHaveLength(0);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("create rejects a non-existent member id and writes nothing", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const result = await service.create("gallery", {
+          status: "published",
+          title: "Ghost Member Gallery",
+          members: ["does-not-exist"],
+        });
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "members"}),
+          ]),
+        });
+
+        const galleries = await itemRepo.list({queryKwargs: {content_type: "gallery"}});
+        expect(galleries.results).toHaveLength(0);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("update reorders members via clear+reinsert without a unique-constraint error", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, relationRepo, service} = makeService(db);
+
+      try {
+        const photo1 = await createPhoto(service, itemRepo, "Photo One");
+        const photo2 = await createPhoto(service, itemRepo, "Photo Two");
+        const photo3 = await createPhoto(service, itemRepo, "Photo Three");
+
+        const galleryId = await service.create("gallery", {
+          status: "published",
+          title: "Reorder Gallery",
+          members: [photo1, photo2, photo3],
+        });
+
+        const result = await service.update(galleryId, {
+          members: [photo3, photo1, photo2],
+        });
+
+        expect(result).not.toHaveProperty("errors");
+        expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([
+          photo3,
+          photo1,
+          photo2,
+        ]);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("update without a members key preserves existing members", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, relationRepo, service} = makeService(db);
+
+      try {
+        const photo1 = await createPhoto(service, itemRepo, "Photo One");
+        const photo2 = await createPhoto(service, itemRepo, "Photo Two");
+
+        const galleryId = await service.create("gallery", {
+          status: "published",
+          title: "Preserve Gallery",
+          members: [photo1, photo2],
+        });
+
+        const result = await service.update(galleryId, {
+          content_html: "<p>Updated description</p>",
+        });
+
+        expect(result).not.toHaveProperty("errors");
+        expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([
+          photo1,
+          photo2,
+        ]);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("update rejects a member id that is not a photo and changes nothing", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, relationRepo, service} = makeService(db);
+
+      try {
+        const photo1 = await createPhoto(service, itemRepo, "Photo One");
+        const blogId = await service.create("blog_article", {
+          status: "published",
+          title: "Not A Photo Either",
+          content_html: "<p>Body</p>",
+        });
+
+        const galleryId = await service.create("gallery", {
+          status: "published",
+          title: "Guarded Gallery",
+          members: [photo1],
+        });
+
+        const result = await service.update(galleryId, {
+          members: [photo1, blogId],
+        });
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "members"}),
+          ]),
+        });
+
+        expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([photo1]);
+        const galleryRow = await itemRepo.getById(galleryId);
+        expect(JSON.parse(galleryRow.data)).not.toHaveProperty("members");
       } finally {
         db.close();
       }

@@ -1,5 +1,6 @@
 import FeedCrudManager from "./FeedCrudManager";
 import TagLinkRepo from "./TagLinkRepo";
+import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
 import {STATUSES} from "../../common-src/Constants";
 import {randomShortUUID} from "../../common-src/StringUtils";
 import {msToRFC3339, rfc3399ToMs} from "../../common-src/TimeUtils";
@@ -163,6 +164,10 @@ function getTagsFieldDef(typeName) {
   return getFieldDefs(typeName).find((fieldDef) => fieldDef.kind === "tags");
 }
 
+function getReferenceFieldDef(typeName) {
+  return getFieldDefs(typeName).find((fieldDef) => fieldDef.kind === "reference");
+}
+
 function rowToPublicItem(typeName, row) {
   const publicItem = {};
   const internalData = row?.data ? JSON.parse(row.data) : {};
@@ -194,6 +199,34 @@ export default class ContentService extends FeedCrudManager {
     this.itemRepo = feedDb.itemRepo;
     this.mediaStore = mediaStore;
     this.tagLinkRepo = new TagLinkRepo(this.itemRepo.db);
+    this.relationRepo = new RelationRepo(this.itemRepo.db);
+  }
+
+  async _validateMembersArePhotos(childIds) {
+    if (!childIds || childIds.length === 0) {
+      return {errors: []};
+    }
+
+    const response = await this.itemRepo.list({
+      queryKwargs: {
+        id__in: childIds,
+      },
+    });
+    const rowsById = new Map(response.results.map((row) => [row.id, row]));
+
+    const invalidIds = childIds.filter((childId) => {
+      const row = rowsById.get(childId);
+      return !row || row.content_type !== "photo";
+    });
+
+    if (invalidIds.length > 0) {
+      return validationError(
+        "members",
+        `Members must reference existing photo items: ${invalidIds.join(", ")}`,
+      );
+    }
+
+    return {errors: []};
   }
 
   async create(typeName, payload = {}) {
@@ -212,6 +245,17 @@ export default class ContentService extends FeedCrudManager {
     const tagsFieldDef = getTagsFieldDef(typeName);
     if (tagsFieldDef) {
       deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
+    }
+
+    const referenceFieldDef = getReferenceFieldDef(typeName);
+    let memberIds = [];
+    if (referenceFieldDef) {
+      memberIds = inputPayload[referenceFieldDef.key] || [];
+      const membersValidation = await this._validateMembersArePhotos(memberIds);
+      if (membersValidation.errors.length > 0) {
+        return membersValidation;
+      }
+      deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
     }
 
     const itemId = inputPayload.id || randomShortUUID();
@@ -236,6 +280,10 @@ export default class ContentService extends FeedCrudManager {
     if (tagsFieldDef) {
       const tagIds = inputPayload[tagsFieldDef.key] || [];
       await this.tagLinkRepo.setItemTags(itemId, tagIds);
+    }
+
+    if (referenceFieldDef) {
+      await this.relationRepo.setMembers(itemId, memberIds, GALLERY_MEMBER);
     }
 
     return itemId;
@@ -266,7 +314,21 @@ export default class ContentService extends FeedCrudManager {
       setByPath(existingPublicItem, tagsFieldDef.feedMapping.source, existingTagIds);
     }
 
+    const referenceFieldDef = getReferenceFieldDef(typeName);
+    if (referenceFieldDef) {
+      const existingMemberIds = await this.relationRepo.getMemberIds(itemId, GALLERY_MEMBER);
+      setByPath(existingPublicItem, referenceFieldDef.feedMapping.source, existingMemberIds);
+    }
+
     const mergedPublicItem = mergeDeep(existingPublicItem, inputPayload);
+
+    if (referenceFieldDef) {
+      const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
+      const membersValidation = await this._validateMembersArePhotos(mergedMemberIds);
+      if (membersValidation.errors.length > 0) {
+        return membersValidation;
+      }
+    }
 
     let validation;
     try {
@@ -282,6 +344,9 @@ export default class ContentService extends FeedCrudManager {
     const internalItem = mapItem(typeName, mergedPublicItem);
     if (tagsFieldDef) {
       deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
+    }
+    if (referenceFieldDef) {
+      deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
     }
 
     const slugSource = normalizeSlugSource(mergedPublicItem.title);
@@ -305,6 +370,11 @@ export default class ContentService extends FeedCrudManager {
     if (tagsFieldDef) {
       const mergedTagIds = getByPath(mergedPublicItem, tagsFieldDef.feedMapping.source) || [];
       await this.tagLinkRepo.setItemTags(itemId, mergedTagIds);
+    }
+
+    if (referenceFieldDef) {
+      const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
+      await this.relationRepo.setMembers(itemId, mergedMemberIds, GALLERY_MEMBER);
     }
 
     return itemId;
