@@ -62,7 +62,7 @@ Do top-to-bottom. Deps in parens must be merged first.
 
 **Phase 2 review notes:** first pass drifted from spec (agent was offline, inferred from old editor). Corrected in review: podcast `url→link` + `content_html→description` targets (were wrong, untested); added blog `author`/`excerpt`, photo `caption`/`taken_date`; dropped extraneous `url` from non-podcast types. Added tests for the podcast mapping. Authoritative catalog now in [docs/CONTENT_TYPES.md](CONTENT_TYPES.md) so offline sessions don't re-drift.
 
-> ⚠️ **Run tests under Node 22** (`fnm exec --using 22 -- yarn test`, or volta). The repo's `better-sqlite3` native addon is built for Node 22; Node 24/26 fail with `NODE_MODULE_VERSION` ABI errors that look like test failures but aren't. CI already uses Node 22.x.
+> ⚠️ **Run tests under Node 22** (`fnm exec --using 22 -- corepack yarn@4.9.2 test`, or volta). The repo's `better-sqlite3` native addon is built for Node 22; Node 24/26 fail with `NODE_MODULE_VERSION` ABI errors that look like test failures but aren't. CI already uses Node 22.x.
 
 ### Phase 3 — CRUD seam (#5)  · needs Phases 1–2
 - [x] 3.1 ContentService create/update + strict validation ✅ reviewed (validation gates writes; per-type slug; deep-merge+revalidate; middleware swap keeps upsertItem via inheritance)

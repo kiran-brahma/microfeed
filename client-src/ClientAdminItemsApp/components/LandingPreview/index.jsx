@@ -31,7 +31,7 @@ export default function LandingPreview({ payload }) {
         clearTimeout(debounceRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-run when the filter payload changes (compared by value via stringify).
   }, [JSON.stringify(payload)]);
 
   return (
