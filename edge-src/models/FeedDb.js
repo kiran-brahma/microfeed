@@ -8,6 +8,10 @@ import FeedPublicJsonBuilder from "./FeedPublicJsonBuilder";
 import ChannelRepo from "./ChannelRepo";
 import ItemRepo from "./ItemRepo";
 import SettingsRepo from "./SettingsRepo";
+import TagLinkRepo from "./TagLinkRepo";
+import AggregationResolver from "./AggregationResolver";
+import {getFieldDefs, isAggregator} from "../registry/ContentTypeRegistry";
+import {serializeItemForFeed} from "./FeedItemSerializer";
 
 /**
  * support url query parameters:
@@ -81,6 +85,17 @@ function getItemJson(itemObj) {
   }
   return {
     ...itemJson,
+    // Raw row kept alongside the pre-parsed json above so the feed builder can
+    // run every item through the registry-driven FeedItemSerializer without
+    // disturbing existing consumers of the spread `itemJson` shape.
+    _feedRow: {
+      id: itemObj.id,
+      content_type: itemObj.content_type,
+      status: itemObj.status,
+      slug: itemObj.slug,
+      pub_date: itemObj.pub_date,
+      data: itemObj.data,
+    },
   };
 }
 
@@ -132,11 +147,59 @@ export default class FeedDb {
     this.channelRepo = new ChannelRepo(this.FEED_DB);
     this.itemRepo = new ItemRepo(this.FEED_DB);
     this.settingsRepo = new SettingsRepo(this.FEED_DB);
+    this.tagLinkRepo = new TagLinkRepo(this.FEED_DB);
+    this.aggregationResolver = new AggregationResolver(this.FEED_DB);
 
     const urlObj = new URL(request.url);
     this.baseUrl = urlObj.origin;
 
     this.request = request;
+  }
+
+  /**
+   * Hydrates the `_feedRow` attached to each item (see getItemJson) with the
+   * data FeedItemSerializer needs but can't derive on its own: the item's
+   * linked tag ids, and — for aggregators (gallery/landing_page) — the
+   * resolved + serialized member items. Runs BEFORE the (synchronous)
+   * FeedPublicJsonBuilder is constructed so the builder itself stays sync.
+   */
+  async _hydrateItemsForFeed(items) {
+    for (const item of items) {
+      const row = item._feedRow;
+      if (!row) {
+        continue;
+      }
+
+      const tagsFieldDef = getFieldDefs(row.content_type).find((fieldDef) => fieldDef.kind === "tags");
+      if (tagsFieldDef) {
+        row.tagIds = await this.tagLinkRepo.getTagIdsForItem(row.id);
+      }
+
+      if (isAggregator(row.content_type)) {
+        const memberRows = await this.aggregationResolver.resolve(row, {
+          statuses: [STATUSES.PUBLISHED, STATUSES.UNLISTED],
+        });
+        const members = [];
+        for (const memberRow of memberRows) {
+          const memberTagsFieldDef = getFieldDefs(memberRow.content_type)
+            .find((fieldDef) => fieldDef.kind === "tags");
+          const memberTagIds = memberTagsFieldDef
+            ? await this.tagLinkRepo.getTagIdsForItem(memberRow.id)
+            : [];
+          members.push(serializeItemForFeed(memberRow, {
+            publicBucketUrl: this._publicBucketUrl(),
+            tagIds: memberTagIds,
+          }));
+        }
+        row.members = members;
+      }
+    }
+    return items;
+  }
+
+  _publicBucketUrl() {
+    const webGlobalSettings = (this._settingsCache && this._settingsCache.webGlobalSettings) || {};
+    return webGlobalSettings.publicBucketUrl || '';
   }
 
   _getRepo(table) {
@@ -284,6 +347,7 @@ export default class FeedDb {
           prevCursor: fromUrl?.prevCursor,
         });
         contentJson['items'] = page.results.map((result) => getItemJson(result));
+        await this._hydrateItemsForFeed(contentJson['items']);
         contentJson['items_sort_order'] = page.items_sort_order;
         if (page.items_next_cursor !== undefined) {
           contentJson['items_next_cursor'] = page.items_next_cursor;
@@ -312,6 +376,8 @@ export default class FeedDb {
       });
     }
 
+    this._settingsCache = contentJson.settings;
+
     if (fetchItems) {
       const webGlobalSettings = contentJson.settings.webGlobalSettings || {};
       const fromUrl = fetchItems.fromUrl || {};
@@ -334,6 +400,7 @@ export default class FeedDb {
         prevCursor,
       });
       contentJson.items = page.results.map((result) => getItemJson(result));
+      await this._hydrateItemsForFeed(contentJson.items);
       contentJson.items_sort_order = page.items_sort_order;
       if (page.items_next_cursor !== undefined) {
         contentJson.items_next_cursor = page.items_next_cursor;
