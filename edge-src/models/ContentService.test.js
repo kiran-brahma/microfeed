@@ -141,4 +141,125 @@ describe("ContentService", () => {
       db.close();
     }
   });
+
+  test("delete soft-deletes an item, keeping it retrievable but excluded from active listings", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "To Be Deleted",
+        content_html: "<p>Body</p>",
+      });
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "to-be-deleted");
+
+      const result = await service.delete(existing.id);
+
+      expect(result).toEqual(existing.id);
+      const row = await itemRepo.getById(existing.id);
+      expect(row).toMatchObject({
+        id: existing.id,
+        status: STATUSES.DELETED,
+      });
+      const activeResults = await itemRepo.list({
+        queryKwargs: {
+          "status__!=": STATUSES.DELETED,
+        },
+      });
+      expect(activeResults.results.map((entry) => entry.id)).not.toContain(existing.id);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("delete on a missing id returns not-found error and writes nothing", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      const result = await service.delete("does-not-exist");
+
+      expect(result).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "id", message: "Item not found"}),
+        ]),
+      });
+      expect((await itemRepo.list()).results).toHaveLength(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("restore sets a soft-deleted item's status to unpublished", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "To Be Restored",
+        content_html: "<p>Body</p>",
+      });
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "to-be-restored");
+      await service.delete(existing.id);
+
+      const result = await service.restore(existing.id);
+
+      expect(result).toEqual(existing.id);
+      const row = await itemRepo.getById(existing.id);
+      expect(row).toMatchObject({
+        id: existing.id,
+        status: STATUSES.UNPUBLISHED,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  test("restore on a non-deleted item returns a not-deleted error and does not change status", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "Still Live",
+        content_html: "<p>Body</p>",
+      });
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "still-live");
+
+      const result = await service.restore(existing.id);
+
+      expect(result).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "id", message: "Item is not deleted"}),
+        ]),
+      });
+      const row = await itemRepo.getById(existing.id);
+      expect(row).toMatchObject({
+        id: existing.id,
+        status: STATUSES.PUBLISHED,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  test("restore on a missing id returns not-found error", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {service} = makeService(db);
+
+    try {
+      const result = await service.restore("does-not-exist");
+
+      expect(result).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "id", message: "Item not found"}),
+        ]),
+      });
+    } finally {
+      db.close();
+    }
+  });
 });

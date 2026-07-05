@@ -262,4 +262,30 @@ export default class ContentService extends FeedCrudManager {
 
     return itemId;
   }
+
+  async delete(itemId) {
+    const existingRow = await this.itemRepo.getById(itemId);
+    if (!existingRow) {
+      return validationError("id", "Item not found");
+    }
+
+    await this.itemRepo.update(itemId, {status: STATUSES.DELETED});
+
+    return itemId;
+  }
+
+  async restore(itemId) {
+    const existingRow = await this.itemRepo.getById(itemId);
+    if (!existingRow) {
+      return validationError("id", "Item not found");
+    }
+
+    if (existingRow.status !== STATUSES.DELETED) {
+      return validationError("id", "Item is not deleted");
+    }
+
+    await this.itemRepo.update(itemId, {status: STATUSES.UNPUBLISHED});
+
+    return itemId;
+  }
 }
