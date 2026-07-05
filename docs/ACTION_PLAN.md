@@ -86,7 +86,8 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 5.1c Restyle shared admin components ✅ reviewed (+fixed pre-existing TipTap jsdom flake via ProseMirror polyfills)
 - [x] 5.2 Schema-driven FormRenderer (core + simple widgets) ✅ reviewed (override widget seam for media/tags/reference)
 - [x] 5.3a Media/image upload widget ✅ reviewed
-- [ ] 5.3b Type picker + new/edit flow (5.2, 5.3a, Phase 3)
+- [x] 5.3b-api Admin ContentService item endpoints (session-authed) ✅ reviewed
+- [ ] 5.3b Type picker + new/edit flow (5.2, 5.3a, 5.3b-api)
 - [ ] 5.3c Item list + filtering (Phases 3,4)
 - [ ] 5.3d Bulk actions in list (5.3c, 3.4)
 - [ ] 5.4a Tag manager screen (4.1)
