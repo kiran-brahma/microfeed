@@ -79,7 +79,8 @@ Do top-to-bottom. Deps in parens must be merged first.
 - [x] 4.3 Ordered gallery membership + reference wiring (4.2) ✅ reviewed (clear+reinsert; photo-type validation before write)
 - [x] 4.4 Aggregation resolver (4.2, 4.3) ✅ reviewed (+fixed landing filter_tags collision via string_list kind)
 
-### Phase 5 — Admin UI (#7)  · needs Phases 2–4 (5.1a–c can start early)
+### Phase 5 — Admin UI (#7)  · needs Phases 2–4
+- [x] 5.0 React test infra (jsdom + Testing Library, per-file opt-in) ✅ reviewed
 - [ ] 5.1a Upgrade @headlessui/react → v2
 - [ ] 5.1b Replace react-quill → TipTap
 - [ ] 5.1c Restyle shared admin components (5.1a)

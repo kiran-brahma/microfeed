@@ -7,6 +7,7 @@ Copy-paste one block per task into a fresh Sonnet session. One task = one sessio
 - Repo: `microfeed`. Issues on fork `kiran-brahma/microfeed`. **Read issue #1 (master PRD) + the task's epic issue before coding.** All decisions are settled there — do not re-decide; if something is genuinely undecided, STOP and ask.
 - **Content-type field spec: [`docs/CONTENT_TYPES.md`](docs/CONTENT_TYPES.md)** — authoritative in-repo copy of the type/field/target catalog (use this if GitHub issue #1 is unreachable). Do NOT infer field sets from old editor code.
 - **Tests-first:** write the named failing tests, run, confirm RED, then implement to GREEN. Run `yarn test` — everything green before you stop.
+- **React component tests:** add `/** @jest-environment jsdom */` at the top of the file; use @testing-library/react.
 - Touch **only** the files this task needs. No scope creep, no drive-by refactors.
 - SQL: always parameterized (`?` binds), never string-interpolate user values.
 - When code-complete + green, STOP and hand to the **Reviewer prompt** (bottom of this file). Fix findings, then the task is done.

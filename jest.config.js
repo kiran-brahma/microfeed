@@ -12,4 +12,8 @@ module.exports = {
   modulePathIgnorePatterns: [
     "<rootDir>/.claude/",
   ],
+  // Default stays "node" so the backend suite is unaffected. React component
+  // test files opt into jsdom individually via a per-file docblock:
+  //   /** @jest-environment jsdom */
+  setupFilesAfterEnv: ["@testing-library/jest-dom"],
 };
