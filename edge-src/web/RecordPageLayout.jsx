@@ -245,6 +245,13 @@ export default function RecordPageLayout({title, description, canonicalUrl, chan
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
+        {/* Media is served from a bucket domain (e.g. media.<domain>) that has
+            Cloudflare hotlink protection on. When the site is viewed from a
+            different origin (e.g. *.pages.dev) the cross-origin Referer is
+            rejected (HTTP 1011/403) and every image breaks. Suppressing the
+            referer makes image requests look direct, which hotlink protection
+            allows — so covers work on the bucket's own domain and elsewhere. */}
+        <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title}</title>
         {description && <meta name="description" content={description} />}
