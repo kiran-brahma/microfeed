@@ -15,6 +15,7 @@ export default function TypeListingPage({
   basePath = "",
   nextCursor,
   prevCursor,
+  seo,
 }) {
   const entries = items || [];
 
@@ -24,6 +25,7 @@ export default function TypeListingPage({
       canonicalUrl={canonicalUrl}
       channel={channel}
       navTypes={navTypes}
+      seo={seo}
     >
       <h1 className="record-page__title">{typeLabel}</h1>
       {entries.length === 0 ? (

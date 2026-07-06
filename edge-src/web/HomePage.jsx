@@ -3,7 +3,7 @@ import RecordPageLayout from "./RecordPageLayout";
 import ItemCard from "./ItemCard";
 import {htmlMetaDescription} from "../../common-src/StringUtils";
 
-export default function HomePage({channel, items, canonicalUrl, navTypes}) {
+export default function HomePage({channel, items, canonicalUrl, navTypes, seo}) {
   const title = channel.title || "";
   const description = htmlMetaDescription(channel.description || "", false);
   const entries = items || [];
@@ -15,6 +15,7 @@ export default function HomePage({channel, items, canonicalUrl, navTypes}) {
       canonicalUrl={canonicalUrl}
       channel={channel}
       navTypes={navTypes}
+      seo={seo}
     >
       <div className="home-hero">
         {channel.image && <img className="home-hero__banner" src={channel.image} alt={title} />}

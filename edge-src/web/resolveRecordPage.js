@@ -3,7 +3,9 @@ import FeedDb from "../models/FeedDb";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
 import {getPublicNavLinks} from "./publicNavTypes";
 import {serializeChannelForWeb} from "./publicChannel";
-import {STATUSES} from "../../common-src/Constants";
+import {recordSeo} from "./seo/buildSeo";
+import {itemPublicUrl} from "./itemPublicUrl";
+import {STATUSES, SETTINGS_CATEGORIES} from "../../common-src/Constants";
 
 const VISIBLE_STATUSES = new Set([STATUSES.PUBLISHED, STATUSES.UNLISTED]);
 
@@ -26,11 +28,17 @@ export async function resolveRecordPage(env, request, contentType, slug) {
   const content = await feedDb.getContent();
   const webGlobalSettings = (content.settings && content.settings.webGlobalSettings) || {};
   const publicBucketUrl = webGlobalSettings.publicBucketUrl || "";
+  const seoSettings = (content.settings && content.settings[SETTINGS_CATEGORIES.SEO]) || {};
 
   const item = serializeItemForFeed(row, {publicBucketUrl});
   const navTypes = await getPublicNavLinks(itemRepo);
+  const channel = serializeChannelForWeb(content.channel, publicBucketUrl);
 
-  return {row, item, content, publicBucketUrl, channel: serializeChannelForWeb(content.channel, publicBucketUrl), navTypes};
+  const urlObject = new URL(request.url);
+  const canonicalUrl = `${urlObject.origin}${itemPublicUrl(contentType, slug)}/`;
+  const seo = recordSeo({item, contentType, channel, seoSettings, publicBucketUrl, canonicalUrl});
+
+  return {row, item, content, publicBucketUrl, channel, navTypes, seo};
 }
 
 export default resolveRecordPage;

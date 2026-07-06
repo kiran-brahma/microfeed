@@ -28,6 +28,23 @@ async function setChannelTitle(db, request, title) {
   });
 }
 
+async function setSeoSettings(db, request, seoSettings) {
+  const feedDb = new FeedDb({FEED_DB: db}, request);
+  const content = await feedDb.getContent();
+  await feedDb._putSettingsToContent({
+    ...content.settings,
+    seoSettings: {
+      ...(content.settings.seoSettings || {}),
+      ...seoSettings,
+    },
+  });
+}
+
+function extractJsonLd(html) {
+  const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  return scriptMatch ? JSON.parse(scriptMatch[1]) : null;
+}
+
 async function createPhoto(service, itemRepo, title, extra = {}) {
   await service.create("photo", {
     status: "published",
@@ -269,6 +286,53 @@ describe("aggregator + home web pages", () => {
       // Galleries listing link on the aggregator detail page.
       expect(html).toContain("public-nav");
       expect(html).toContain('href="/gallery/"');
+    } finally {
+      db.close();
+    }
+  });
+
+  test("gallery detail HTML has ImageGallery JSON-LD", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const photo = await createPhoto(service, itemRepo, "Gallery Seo Photo");
+      await createGallery(service, itemRepo, "Seo Gallery", [photo.id], {
+        content_html: "<p>A curated set</p>",
+      });
+
+      const request = new Request("https://site.test/gallery/seo-gallery");
+      const response = await getGallery({params: {slug: "seo-gallery"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+
+      const jsonLd = extractJsonLd(html);
+      expect(jsonLd).toBeTruthy();
+      expect(jsonLd["@type"]).toBe("ImageGallery");
+      expect(jsonLd.name).toBe("Seo Gallery");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("home page HTML has WebSite JSON-LD with publisher", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const request = new Request("https://site.test/");
+      await setChannelTitle(db, request, "My SEO Feed");
+      await setSeoSettings(db, request, {publisherType: "Organization", publisherName: "My SEO Feed Org"});
+
+      await createBlogArticle(service, itemRepo, "Home Seo Article");
+
+      const response = await getHome({params: {}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+
+      expect(html).toContain('property="og:title"');
+      const jsonLd = extractJsonLd(html);
+      expect(jsonLd).toBeTruthy();
+      expect(jsonLd["@type"]).toBe("WebSite");
+      expect(jsonLd.publisher).toMatchObject({"@type": "Organization", name: "My SEO Feed Org"});
     } finally {
       db.close();
     }

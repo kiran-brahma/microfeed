@@ -1,5 +1,7 @@
 import React from "react";
 import PublicNav from "./PublicNav";
+import MetaTags from "./seo/MetaTags";
+import JsonLd from "./seo/JsonLd";
 
 // Small, self-contained inline stylesheet: system font stack, readable
 // max-width container. No external CSS dependencies (Task 6.3a — fixed,
@@ -240,7 +242,15 @@ const INLINE_STYLES = `
   }
 `;
 
-export default function RecordPageLayout({title, description, canonicalUrl, channel, navTypes = [], children}) {
+export default function RecordPageLayout({title, description, canonicalUrl, channel, navTypes = [], seo, children}) {
+  // When a PageSeo object is supplied, it is the single source of truth for
+  // title/description/canonical so we never double-emit these tags (PRD
+  // §4.2) - the ad-hoc props are only used as a fallback for pages that
+  // haven't been wired with `seo` yet (backward-compatible).
+  const effectiveTitle = seo ? seo.title : title;
+  const effectiveDescription = seo ? seo.description : description;
+  const effectiveCanonicalUrl = seo ? seo.canonicalUrl : canonicalUrl;
+
   return (
     <html lang="en">
       <head>
@@ -253,9 +263,17 @@ export default function RecordPageLayout({title, description, canonicalUrl, chan
             allows — so covers work on the bucket's own domain and elsewhere. */}
         <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{title}</title>
-        {description && <meta name="description" content={description} />}
-        {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+        <title>{effectiveTitle}</title>
+        {effectiveDescription && <meta name="description" content={effectiveDescription} />}
+        {effectiveCanonicalUrl && <link rel="canonical" href={effectiveCanonicalUrl} />}
+        {seo && <MetaTags seo={seo} />}
+        {seo && (
+          <>
+            <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/rss/" />
+            <link rel="alternate" type="application/feed+json" title="JSON Feed" href="/json/" />
+            <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+          </>
+        )}
         <style dangerouslySetInnerHTML={{__html: INLINE_STYLES}} />
       </head>
       <body>
@@ -263,6 +281,7 @@ export default function RecordPageLayout({title, description, canonicalUrl, chan
         <main className="record-page">
           {children}
         </main>
+        {seo && <JsonLd seo={seo} />}
       </body>
     </html>
   );
