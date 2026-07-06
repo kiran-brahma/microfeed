@@ -11,7 +11,7 @@ function ToolbarButton({ label, isActive, onClick, children }) {
       type="button"
       aria-label={label}
       aria-pressed={!!isActive}
-      className={`lh-btn mr-1 mb-1 ${isActive ? "lh-btn-brand-dark" : "lh-btn-white"}`}
+      className={`lh-btn lh-btn-sm mr-1 mb-1 ${isActive ? "lh-btn-brand-dark" : "lh-btn-secondary"}`}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
     >

@@ -17,6 +17,23 @@ describe("AdminRichEditor", () => {
     expect(screen.getByText("Hello world")).toBeInTheDocument();
   });
 
+  it("styles inactive toolbar buttons with a defined, visible class (not the undefined lh-btn-white)", () => {
+    render(
+      <AdminRichEditor
+        value="<p>Hello world</p>"
+        onChange={() => {}}
+        extra={{ publicBucketUrl: "https://cdn.example.com", folderName: "items/1" }}
+      />
+    );
+
+    // lh-btn base sets text-white; the inactive state must add a class that
+    // gives a background/contrasting text or the label is invisible on the
+    // white toolbar. lh-btn-white is not defined anywhere in the stylesheet.
+    const bold = screen.getByRole("button", { name: /bold/i });
+    expect(bold.className).toContain("lh-btn-secondary");
+    expect(bold.className).not.toContain("lh-btn-white");
+  });
+
   it("fires onChange with updated HTML when a toolbar action (bold) is clicked", async () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
