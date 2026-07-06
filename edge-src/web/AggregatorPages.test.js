@@ -253,4 +253,24 @@ describe("aggregator + home web pages", () => {
       db.close();
     }
   });
+
+  test("gallery detail page renders the public nav with the Galleries link", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const photo = await createPhoto(service, itemRepo, "Nav Photo");
+      await createGallery(service, itemRepo, "Nav Gallery", [photo.id]);
+
+      const request = new Request("https://site.test/gallery/nav-gallery");
+      const response = await getGallery({params: {slug: "nav-gallery"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      // A published gallery exists, so the nav must show and include the
+      // Galleries listing link on the aggregator detail page.
+      expect(html).toContain("public-nav");
+      expect(html).toContain('href="/gallery/"');
+    } finally {
+      db.close();
+    }
+  });
 });

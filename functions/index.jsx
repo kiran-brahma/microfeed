@@ -4,7 +4,7 @@ import FeedDb from "../edge-src/models/FeedDb";
 import {serializeItemForFeed} from "../edge-src/models/FeedItemSerializer";
 import {listTypes} from "../edge-src/registry/ContentTypeRegistry";
 import HomePage from "../edge-src/web/HomePage";
-import {getPublicNavTypes} from "../edge-src/web/publicNavTypes";
+import {getPublicNavLinks} from "../edge-src/web/publicNavTypes";
 import {renderReactToHtml} from "../edge-src/common/PageUtils";
 import {STATUSES} from "../common-src/Constants";
 
@@ -31,7 +31,7 @@ export async function onRequestGet({env, request}) {
   });
 
   const items = response.results.map((row) => serializeItemForFeed(row, {publicBucketUrl}));
-  const navTypes = await getPublicNavTypes(itemRepo);
+  const navTypes = await getPublicNavLinks(itemRepo);
 
   const urlObject = new URL(request.url);
   const canonicalUrl = `${urlObject.origin}/`;

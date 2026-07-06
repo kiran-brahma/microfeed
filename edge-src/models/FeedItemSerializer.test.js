@@ -252,4 +252,39 @@ describe("serializeItemForFeed", () => {
       items: [],
     });
   });
+
+  test("landing_page with data.showInNav=true serializes to item.showInNav === true", () => {
+    const row = makeRow({
+      id: "landing-2",
+      content_type: "landing_page",
+      status: 1,
+      slug: "flagged",
+      pub_date: "2024-06-01T00:00:00.000Z",
+      data: {
+        title: "Flagged",
+        showInNav: true,
+      },
+    });
+
+    const result = serializeItemForFeed(row, {publicBucketUrl: PUBLIC_BUCKET_URL});
+
+    expect(result.showInNav).toBe(true);
+  });
+
+  test("landing_page with showInNav absent from data leaves item.showInNav undefined", () => {
+    const row = makeRow({
+      id: "landing-3",
+      content_type: "landing_page",
+      status: 1,
+      slug: "unflagged",
+      pub_date: "2024-06-01T00:00:00.000Z",
+      data: {
+        title: "Unflagged",
+      },
+    });
+
+    const result = serializeItemForFeed(row, {publicBucketUrl: PUBLIC_BUCKET_URL});
+
+    expect(result.showInNav).toBeUndefined();
+  });
 });

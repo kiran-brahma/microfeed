@@ -84,11 +84,28 @@ describe("ContentTypeRegistry", () => {
       "sort",
       "limit",
       "layout",
+      "show_in_nav",
     ]);
 
     expect(getFieldDefs("landing_page").find((field) => field.key === "filter_tags")).toMatchObject({
       kind: "string_list",
     });
+
+    // show_in_nav: boolean fieldDef controlling whether a published landing
+    // page appears as its own top-level nav link (PRD_AGGREGATOR_NAV 4.1).
+    expect(getFieldDefs("landing_page").find((field) => field.key === "show_in_nav")).toMatchObject({
+      kind: "boolean",
+      feedMapping: {
+        source: "showInNav",
+        target: "showInNav",
+      },
+    });
+
+    // Other types are unchanged: no show_in_nav field leaks onto them.
+    expect(getFieldDefs("podcast_episode").some((field) => field.key === "show_in_nav")).toBe(false);
+    expect(getFieldDefs("blog_article").some((field) => field.key === "show_in_nav")).toBe(false);
+    expect(getFieldDefs("photo").some((field) => field.key === "show_in_nav")).toBe(false);
+    expect(getFieldDefs("gallery").some((field) => field.key === "show_in_nav")).toBe(false);
 
     // landing_page's filter fields must not be relational: no tags/reference field kinds.
     expect(

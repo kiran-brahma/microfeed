@@ -62,6 +62,24 @@ describe("ItemCard", () => {
     expect(link).toHaveAttribute("href", "/i/episode-one");
   });
 
+  test("renders gallery title, badge, and href", () => {
+    render(
+      <ItemCard
+        item={{
+          content_type: "gallery",
+          slug: "vacation",
+          title: "Vacation",
+          image: "https://cdn.example.com/vacation-cover.png",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Vacation")).toBeInTheDocument();
+    expect(screen.getByText("Gallery")).toBeInTheDocument();
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/gallery/vacation");
+  });
+
   test("handles missing thumbnail and excerpt gracefully", () => {
     render(
       <ItemCard
