@@ -190,6 +190,9 @@ describe("record type web pages", () => {
       // blog_article exists, so the "Blog" listing link should show).
       expect(html).toContain("public-nav");
       expect(html).toContain('href="/blog/"');
+      // no-referrer meta keeps bucket-hosted cover images from being blocked
+      // by Cloudflare hotlink protection when viewed cross-origin.
+      expect(html).toContain('name="referrer" content="no-referrer"');
     } finally {
       db.close();
     }
