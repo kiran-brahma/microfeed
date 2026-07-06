@@ -271,6 +271,117 @@ describe("serializeItemForFeed", () => {
     expect(result.showInNav).toBe(true);
   });
 
+  test("blog_article surfaces seoTitle/seoDescription/noindex and absolute shareImage (PRD_SEO_GEO 3.2)", () => {
+    const row = makeRow({
+      id: "post-2",
+      content_type: "blog_article",
+      status: 1,
+      slug: "seo-post",
+      pub_date: "2024-07-04T00:00:00.000Z",
+      data: {
+        title: "SEO Post",
+        description: "<p>Body</p>",
+        seoTitle: "Custom SEO Title",
+        seoDescription: "Custom SEO description",
+        shareImage: "production/share.png",
+        noindex: true,
+      },
+    });
+
+    const result = serializeItemForFeed(row, {publicBucketUrl: PUBLIC_BUCKET_URL});
+
+    expect(result.seoTitle).toBe("Custom SEO Title");
+    expect(result.seoDescription).toBe("Custom SEO description");
+    expect(result.shareImage).toBe("https://cdn.example.com/production/share.png");
+    expect(result.noindex).toBe(true);
+  });
+
+  test("blog_article without SEO overrides omits seoTitle/seoDescription/shareImage/noindex", () => {
+    const row = makeRow({
+      id: "post-3",
+      content_type: "blog_article",
+      status: 1,
+      slug: "plain-post",
+      pub_date: "2024-07-04T00:00:00.000Z",
+      data: {
+        title: "Plain Post",
+        description: "<p>Body</p>",
+      },
+    });
+
+    const result = serializeItemForFeed(row, {publicBucketUrl: PUBLIC_BUCKET_URL});
+
+    expect(result.seoTitle).toBeUndefined();
+    expect(result.seoDescription).toBeUndefined();
+    expect(result.shareImage).toBeUndefined();
+    expect(result.noindex).toBeUndefined();
+  });
+
+  test("photo/podcast_episode/gallery/landing_page also round-trip noindex + share_image", () => {
+    const photoRow = makeRow({
+      id: "photo-2",
+      content_type: "photo",
+      status: 1,
+      slug: "seo-photo",
+      pub_date: "2024-06-01T00:00:00.000Z",
+      data: {
+        title: "Seo Photo",
+        image: "production/photo.png",
+        shareImage: "production/photo-share.png",
+        noindex: false,
+      },
+    });
+    expect(serializeItemForFeed(photoRow, {publicBucketUrl: PUBLIC_BUCKET_URL}).shareImage).toBe(
+      "https://cdn.example.com/production/photo-share.png",
+    );
+    expect(serializeItemForFeed(photoRow, {publicBucketUrl: PUBLIC_BUCKET_URL}).noindex).toBe(false);
+
+    const galleryRow = makeRow({
+      id: "gallery-2",
+      content_type: "gallery",
+      status: 1,
+      slug: "seo-gallery",
+      pub_date: "2024-06-01T00:00:00.000Z",
+      data: {
+        title: "Seo Gallery",
+        shareImage: "production/gallery-share.png",
+      },
+    });
+    expect(serializeItemForFeed(galleryRow, {publicBucketUrl: PUBLIC_BUCKET_URL}).shareImage).toBe(
+      "https://cdn.example.com/production/gallery-share.png",
+    );
+
+    const landingRow = makeRow({
+      id: "landing-4",
+      content_type: "landing_page",
+      status: 1,
+      slug: "seo-landing",
+      pub_date: "2024-06-01T00:00:00.000Z",
+      data: {
+        title: "Seo Landing",
+        seoDescription: "Landing description override",
+      },
+    });
+    expect(serializeItemForFeed(landingRow, {publicBucketUrl: PUBLIC_BUCKET_URL}).seoDescription).toBe(
+      "Landing description override",
+    );
+
+    const podcastRow = makeRow({
+      id: "ep-3",
+      content_type: "podcast_episode",
+      status: 1,
+      slug: "seo-episode",
+      pub_date: "2024-07-04T00:00:00.000Z",
+      data: {
+        title: "Seo Episode",
+        seoTitle: "Custom Episode SEO Title",
+      },
+    });
+    expect(serializeItemForFeed(podcastRow, {publicBucketUrl: PUBLIC_BUCKET_URL}).seoTitle).toBe(
+      "Custom Episode SEO Title",
+    );
+  });
+
   test("landing_page with showInNav absent from data leaves item.showInNav undefined", () => {
     const row = makeRow({
       id: "landing-3",

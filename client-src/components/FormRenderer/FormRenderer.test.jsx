@@ -37,12 +37,13 @@ describe("FormRenderer", () => {
     const fieldDefs = getFieldDefs("blog_article");
     render(<Wrapper fieldDefs={fieldDefs} initialValue={{}} />);
 
-    // title is required
-    const titleLabel = screen.getByText("title", { exact: false });
+    // title is required (exact match: blog_article also has an unrelated
+    // "seo_title" field whose label would otherwise substring-match "title").
+    const titleLabel = screen.getByText("title", { exact: true });
     expect(titleLabel.textContent).toMatch(/\*/);
 
     // author is optional
-    const authorLabel = screen.getByText("author", { exact: false });
+    const authorLabel = screen.getByText("author", { exact: true });
     expect(authorLabel.textContent).not.toMatch(/\*/);
   });
 

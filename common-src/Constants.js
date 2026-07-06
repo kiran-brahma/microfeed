@@ -11,6 +11,7 @@ export const SETTINGS_CATEGORIES = {
   ANALYTICS: 'analytics',
   ACCESS: 'access',
   API_SETTINGS: 'apiSettings',
+  SEO: 'seoSettings',
 };
 
 export const DEFAULT_ITEMS_PER_PAGE = 20;

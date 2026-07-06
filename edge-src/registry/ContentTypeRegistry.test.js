@@ -1,5 +1,14 @@
 import {getFieldDefs, getRssKind, getType, isAggregator, listTypes} from "./ContentTypeRegistry";
 
+const SEO_TYPES = ["podcast_episode", "blog_article", "photo", "gallery", "landing_page"];
+
+const SEO_FIELD_EXPECTATIONS = [
+  {key: "seo_title", kind: "text", target: "seoTitle", source: "seoTitle"},
+  {key: "seo_description", kind: "text", target: "seoDescription", source: "seoDescription"},
+  {key: "share_image", kind: "image", target: "shareImage", source: "shareImage"},
+  {key: "noindex", kind: "boolean", target: "noindex", source: "noindex"},
+];
+
 describe("ContentTypeRegistry", () => {
   test("declares the five built-in types", () => {
     expect(listTypes().map((type) => type.name)).toEqual([
@@ -38,6 +47,10 @@ describe("ContentTypeRegistry", () => {
       "itunes:season",
       "itunes:episode",
       "itunes:explicit",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
     ]);
 
     // podcast: url and content_html map to the legacy internal keys link/description
@@ -53,6 +66,10 @@ describe("ContentTypeRegistry", () => {
       "author",
       "tags",
       "date_published_ms",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
     ]);
 
     expect(getFieldDefs("photo").map((field) => field.key)).toEqual([
@@ -62,6 +79,10 @@ describe("ContentTypeRegistry", () => {
       "caption",
       "tags",
       "taken_date",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
     ]);
 
     expect(getFieldDefs("photo").find((field) => field.key === "image")).toMatchObject({
@@ -85,6 +106,10 @@ describe("ContentTypeRegistry", () => {
       "limit",
       "layout",
       "show_in_nav",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
     ]);
 
     expect(getFieldDefs("landing_page").find((field) => field.key === "filter_tags")).toMatchObject({
@@ -137,5 +162,43 @@ describe("ContentTypeRegistry", () => {
     const listed = listTypes();
     expect(listed.find((t) => t.name === "podcast_episode").rss).toBe("itunes");
     expect(listed.find((t) => t.name === "blog_article").rss).toBe("basic");
+  });
+
+  describe("per-item SEO fields (PRD_SEO_GEO 3.2)", () => {
+    test.each(SEO_TYPES)("%s declares seo_title, seo_description, share_image, noindex", (typeName) => {
+      const fieldDefs = getFieldDefs(typeName);
+
+      SEO_FIELD_EXPECTATIONS.forEach(({key, kind, target, source}) => {
+        const fieldDef = fieldDefs.find((field) => field.key === key);
+        expect(fieldDef).toBeDefined();
+        expect(fieldDef.kind).toBe(kind);
+        expect(fieldDef.feedMapping.target).toBe(target);
+        expect(fieldDef.feedMapping.source).toBe(source);
+        expect(fieldDef.required).toBe(false);
+      });
+    });
+
+    test("gallery field keys end with the four SEO fields, existing fields unchanged", () => {
+      expect(getFieldDefs("gallery").map((field) => field.key)).toEqual([
+        "status",
+        "title",
+        "content_html",
+        "image",
+        "members",
+        "tags",
+        "seo_title",
+        "seo_description",
+        "share_image",
+        "noindex",
+      ]);
+    });
+
+    test("SEO field defs are independent per type (mutating one type's fieldDefs doesn't leak)", () => {
+      const blogSeoTitle = getFieldDefs("blog_article").find((field) => field.key === "seo_title");
+      blogSeoTitle.label = "mutated";
+
+      const photoSeoTitle = getFieldDefs("photo").find((field) => field.key === "seo_title");
+      expect(photoSeoTitle.label).not.toBe("mutated");
+    });
   });
 });

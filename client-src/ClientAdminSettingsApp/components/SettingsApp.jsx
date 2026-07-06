@@ -10,6 +10,7 @@ import {showToast} from "../../common/ToastUtils";
 import {NAV_ITEMS} from "../../../common-src/Constants";
 import {preventCloseWhenChanged} from "../../common/BrowserUtils";
 import ApiSettingsApp from "./ApiSettingsApp";
+import SeoSettingsApp from "./SeoSettingsApp";
 
 const SUBMIT_STATUS__START = 1;
 
@@ -110,6 +111,15 @@ export default class SettingsApp extends React.Component {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-1 h-full">
             <ApiSettingsApp
+              submitting={submitting}
+              submitForType={submitForType}
+              feed={feed}
+              onSubmit={this.onSubmit}
+              setChanged={this.setChanged}
+            />
+          </div>
+          <div className="col-span-1 h-full">
+            <SeoSettingsApp
               submitting={submitting}
               submitForType={submitForType}
               feed={feed}

@@ -26,6 +26,18 @@ const STATUS_ENUM_EXTRA = {
   },
 };
 
+// Shared per-item SEO overrides (PRD_SEO_GEO 3.2). Declared once, spread into
+// every content type so they auto-render in the admin editor (FormRenderer)
+// and flow through the feed serializer.
+function seoFieldDefs() {
+  return [
+    makeFieldDef("seo_title", "text", {target: "seoTitle", source: "seoTitle"}),
+    makeFieldDef("seo_description", "text", {target: "seoDescription", source: "seoDescription"}),
+    makeFieldDef("share_image", "image", {target: "shareImage", source: "shareImage"}),
+    makeFieldDef("noindex", "boolean", {target: "noindex", source: "noindex"}),
+  ];
+}
+
 const TYPE_DEFINITIONS = [
   {
     name: "podcast_episode",
@@ -69,6 +81,7 @@ const TYPE_DEFINITIONS = [
         source: ["_microfeed", "itunes:explicit"],
         target: "itunes:explicit",
       }),
+      ...seoFieldDefs(),
     ],
   },
   {
@@ -84,6 +97,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("author", "text"),
       makeFieldDef("tags", "tags"),
       makeFieldDef("date_published_ms", "date", {target: "pubDateMs"}),
+      ...seoFieldDefs(),
     ],
   },
   {
@@ -96,6 +110,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("caption", "text"),
       makeFieldDef("tags", "tags"),
       makeFieldDef("taken_date", "date", {target: "pubDateMs"}),
+      ...seoFieldDefs(),
     ],
   },
   {
@@ -108,6 +123,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("image", "image"),
       makeFieldDef("members", "reference", {required: true, target: "members"}),
       makeFieldDef("tags", "tags"),
+      ...seoFieldDefs(),
     ],
   },
   {
@@ -131,6 +147,7 @@ const TYPE_DEFINITIONS = [
         options: LAYOUT_OPTIONS,
       }),
       makeFieldDef("show_in_nav", "boolean", {target: "showInNav", source: "showInNav"}),
+      ...seoFieldDefs(),
     ],
   },
 ];
