@@ -111,12 +111,13 @@ export const PREDEFINED_SUBSCRIBE_METHODS = {
   },
 };
 
+// Neutral, non-"microfeed" default branding. Configured brand values live in
+// webGlobalSettings (see common-src/BrandUtils.js resolveBrand); this object is
+// only the neutral fallback source.
 export const OUR_BRAND = {
-  domain: 'microfeed.org',
-  brandName: 'microfeed',
-  whatsnewEndpoint: 'https://www.microfeed.org/json/',
-  whatsnewWebsite: 'https://www.microfeed.org',
-  exampleCdnUrl: 'https://media-cdn.microfeed.org',
+  domain: 'example.com',
+  brandName: 'My Feed',
+  exampleCdnUrl: 'https://media-cdn.example.com',
 };
 
 export const ENCLOSURE_CATEGORIES = {
@@ -163,6 +164,7 @@ export const NAV_ITEMS = {
   NEW_ITEM: 'new_item',
   ALL_ITEMS: 'all_items',
   TAGS: 'tags',
+  MEDIA: 'media',
   SETTINGS: 'settings',
 };
 
@@ -181,6 +183,9 @@ export const NAV_ITEMS_DICT = {
   },
   [NAV_ITEMS.TAGS]: {
     name: 'Tags',
+  },
+  [NAV_ITEMS.MEDIA]: {
+    name: 'Media',
   },
   [NAV_ITEMS.SETTINGS]: {
     name: 'Settings',

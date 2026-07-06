@@ -1,7 +1,8 @@
 import {XMLBuilder} from "fast-xml-parser";
 import {PUBLIC_URLS, secondsToHHMMSS} from "../../common-src/StringUtils";
 import {msToUtcString} from "../../common-src/TimeUtils";
-import {OUR_BRAND, ENCLOSURE_CATEGORIES} from "../../common-src/Constants";
+import {ENCLOSURE_CATEGORIES} from "../../common-src/Constants";
+import {resolveBrand} from "../../common-src/BrandUtils";
 import {getRssKind} from "../registry/ContentTypeRegistry";
 
 export default class FeedPublicRssBuilder {
@@ -127,7 +128,7 @@ export default class FeedPublicRssBuilder {
     const channelRss = {
       'title': this.jsonData.title,
       'language': this.jsonData.language,
-      'generator': OUR_BRAND.domain,
+      'generator': resolveBrand(this.jsonData.settings).brandDomain,
     };
 
     if (this.rssKind === 'itunes') {

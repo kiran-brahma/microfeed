@@ -17,7 +17,7 @@ describe("OpenApiBuilder", () => {
     expect(spec.openapi).toMatch(/^3\.0\.\d+$/);
     expect(spec.info).toBeDefined();
     expect(spec.info.version).toBe(version);
-    expect(spec.info.title).toBe("microfeed API");
+    expect(spec.info.title).toBe("My Feed API");
     expect(spec.servers).toEqual([{url: baseUrl}]);
   });
 

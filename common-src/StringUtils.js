@@ -239,11 +239,17 @@ export const ADMIN_URLS = {
   allItems: () => `${ADMIN_HOME}/items/list/`,
   settings: () => `${ADMIN_HOME}/settings/`,
   tags: () => `${ADMIN_HOME}/tags/`,
+  media: () => `${ADMIN_HOME}/media/`,
   logout: () => '/cdn-cgi/access/logout',
 
   ajaxFeed: () => `${ADMIN_HOME}/ajax/feed/`,
   ajaxTags: () => `${ADMIN_HOME}/ajax/tags/`,
   ajaxTag: (tagId) => `${ADMIN_HOME}/ajax/tags/${tagId}/`,
+  ajaxMediaList: () => `${ADMIN_HOME}/ajax/media/list`,
+  ajaxMediaReconcile: () => `${ADMIN_HOME}/ajax/media/reconcile`,
+  ajaxMediaDelete: () => `${ADMIN_HOME}/ajax/media/delete`,
+  ajaxMediaCheckHash: () => `${ADMIN_HOME}/ajax/media/check-hash`,
+  ajaxMediaRegister: () => `${ADMIN_HOME}/ajax/media/register`,
 };
 
 /**

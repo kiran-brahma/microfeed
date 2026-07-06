@@ -8,6 +8,7 @@ import {randomHex, urlJoinWithRelative} from '../../../common-src/StringUtils';
 import AdminDialog from "../AdminDialog";
 import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import ExternalLink from "../ExternalLink";
+import MediaLibraryPicker from "../MediaLibraryPicker";
 import {showToast} from "../../common/ToastUtils";
 
 const UPLOAD_STATUS__START = 1;
@@ -186,6 +187,18 @@ export default class AdminImageUploaderApp extends React.Component {
       {absoluteImageUrl && <div className="text-sm flex justify-center mt-1">
         <ExternalLink linkClass="text-helper-color text-xs" text="preview image" url={absoluteImageUrl} />
       </div>}
+      <div className="flex justify-center mt-2">
+        <MediaLibraryPicker
+          buttonLabel="Or choose from uploaded"
+          buttonClass="text-helper-color text-xs underline"
+          onSelect={(internalUrl, absoluteUrl, media) => {
+            // Reuse an existing image: hand the internal (host-stripped) url to
+            // the parent, exactly as a fresh upload would.
+            this.setState({currentImageUrl: internalUrl});
+            this.props.onImageUploaded(internalUrl, (media && media.content_type) || '');
+          }}
+        />
+      </div>
       <AdminDialog
         isOpen={showModal}
         setIsOpen={(trueOrFalse) => this.setState({showModal: trueOrFalse})}
