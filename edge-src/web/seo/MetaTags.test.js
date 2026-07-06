@@ -114,4 +114,24 @@ describe("JsonLd", () => {
     const parsed = JSON.parse(rawContent.replace(/<\\\//g, "</"));
     expect(parsed.description).toBe("Bad</script><script>alert(1)</script>");
   });
+
+  test("renders the BreadcrumbList as a separate second ld+json script (no @graph)", () => {
+    const seo = {
+      jsonLd: {"@context": "https://schema.org", "@type": "BlogPosting", headline: "Hello"},
+      breadcrumb: {"@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: []},
+    };
+    const container = renderToDom(<JsonLd seo={seo} />);
+    const scripts = container.querySelectorAll('script[type="application/ld+json"]');
+    expect(scripts.length).toBe(2);
+    const types = [...scripts].map((s) => JSON.parse(s.textContent)["@type"]);
+    expect(types).toEqual(["BlogPosting", "BreadcrumbList"]);
+    // No redundant @graph on the primary node.
+    expect(JSON.parse(scripts[0].textContent)["@graph"]).toBeUndefined();
+  });
+
+  test("renders only the primary script when there is no breadcrumb", () => {
+    const seo = {jsonLd: {"@context": "https://schema.org", "@type": "WebSite", name: "S"}};
+    const container = renderToDom(<JsonLd seo={seo} />);
+    expect(container.querySelectorAll('script[type="application/ld+json"]').length).toBe(1);
+  });
 });

@@ -109,15 +109,19 @@ function breadcrumbList(entries) {
   };
 }
 
+// Returns the PageSeo fields carrying structured data for a detail page: the
+// primary entity as a clean top-level JSON-LD object (so consumers can read
+// seo.jsonLd["@type"] directly) plus the BreadcrumbList as a separate node.
+// The two are emitted as two independent <script type="application/ld+json">
+// blocks (JsonLd.jsx) - the Google-recommended way to express multiple
+// entities, avoiding a redundant @graph that also duplicates the main node.
 function withBreadcrumb(mainNode, breadcrumbEntries) {
-  const breadcrumb = breadcrumbList(breadcrumbEntries);
   return {
-    "@context": SCHEMA_CONTEXT,
-    "@graph": [{...mainNode}, breadcrumb],
-    // Flatten the primary node's own keys to the top level too, so simple
-    // consumers that only look at seo.jsonLd["@type"] etc. keep working
-    // without having to know about @graph.
-    ...mainNode,
+    jsonLd: {
+      "@context": SCHEMA_CONTEXT,
+      ...mainNode,
+    },
+    breadcrumb: breadcrumbList(breadcrumbEntries),
   };
 }
 
@@ -273,7 +277,7 @@ function buildBlogPostingSeo({item, channel, seoSettings, publicBucketUrl, canon
     author: item.author || null,
     section: RECORD_TYPE_LABELS.blog_article,
     tags: item.tags || [],
-    jsonLd: withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "blog_article", item, channel, canonicalUrl})),
+    ...withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "blog_article", item, channel, canonicalUrl})),
   };
 }
 
@@ -341,7 +345,7 @@ function buildPodcastEpisodeSeo({item, channel, seoSettings, publicBucketUrl, ca
     author: item.author || null,
     section: RECORD_TYPE_LABELS.podcast_episode,
     tags: item.tags || [],
-    jsonLd: withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "podcast_episode", item, channel, canonicalUrl})),
+    ...withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "podcast_episode", item, channel, canonicalUrl})),
   };
 }
 
@@ -397,7 +401,7 @@ function buildPhotoSeo({item, channel, seoSettings, publicBucketUrl, canonicalUr
     author: item.author || null,
     section: RECORD_TYPE_LABELS.photo,
     tags: item.tags || [],
-    jsonLd: withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "photo", item, channel, canonicalUrl})),
+    ...withBreadcrumb(mainNode, recordBreadcrumbEntries({contentType: "photo", item, channel, canonicalUrl})),
   };
 }
 
@@ -477,7 +481,7 @@ function buildGallerySeo({item, members, channel, seoSettings, publicBucketUrl, 
     author: null,
     section: "Galleries",
     tags: item.tags || [],
-    jsonLd: withBreadcrumb(mainNode, [
+    ...withBreadcrumb(mainNode, [
       {name: channel.title || "Home", url: siteOrigin(canonicalUrl) ? `${siteOrigin(canonicalUrl)}/` : "/"},
       {name: "Galleries", url: siteOrigin(canonicalUrl) ? `${siteOrigin(canonicalUrl)}${itemPublicUrl("gallery", "")}` : itemPublicUrl("gallery", "")},
       {name: title, url: canonicalUrl},
@@ -539,7 +543,7 @@ function buildLandingPageSeo({item, members, channel, seoSettings, publicBucketU
     author: null,
     section: null,
     tags: item.tags || [],
-    jsonLd: withBreadcrumb(mainNode, [
+    ...withBreadcrumb(mainNode, [
       {name: channel.title || "Home", url: siteOrigin(canonicalUrl) ? `${siteOrigin(canonicalUrl)}/` : "/"},
       {name: title, url: canonicalUrl},
     ]),

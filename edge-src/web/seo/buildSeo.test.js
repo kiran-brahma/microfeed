@@ -128,11 +128,11 @@ describe("recordSeo", () => {
     expect(seo.jsonLd.publisher).toMatchObject({"@type": "Organization", name: "Test Org"});
     expect(seo.jsonLd.mainEntityOfPage).toMatchObject({"@type": "WebPage", "@id": "https://example.com/blog/hello-world/"});
 
-    // BreadcrumbList should be present (either as separate array entry or @graph)
-    const jsonLdArray = Array.isArray(seo.jsonLd) ? seo.jsonLd : [seo.jsonLd];
-    const hasBreadcrumb = jsonLdArray.some((node) => node["@type"] === "BreadcrumbList")
-      || (seo.jsonLd["@graph"] && seo.jsonLd["@graph"].some((node) => node["@type"] === "BreadcrumbList"));
-    expect(hasBreadcrumb).toBe(true);
+    // BreadcrumbList is emitted as a separate node (its own ld+json script),
+    // not embedded in the primary entity's @graph.
+    expect(seo.jsonLd["@graph"]).toBeUndefined();
+    expect(seo.breadcrumb).toMatchObject({"@type": "BreadcrumbList"});
+    expect(seo.breadcrumb.itemListElement.length).toBeGreaterThanOrEqual(2);
   });
 
   test("blog_article seoTitle/seoDescription/shareImage overrides win over derived values", () => {
