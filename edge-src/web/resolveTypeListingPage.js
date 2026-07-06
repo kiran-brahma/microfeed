@@ -2,6 +2,7 @@ import ItemRepo from "../models/ItemRepo";
 import FeedDb from "../models/FeedDb";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
 import {getPublicNavLinks} from "./publicNavTypes";
+import {serializeChannelForWeb} from "./publicChannel";
 import {STATUSES, DEFAULT_ITEMS_PER_PAGE} from "../../common-src/Constants";
 
 /**
@@ -40,7 +41,7 @@ export async function resolveTypeListingPage(env, request, contentType) {
     nextCursor: page.items_next_cursor,
     prevCursor: page.items_prev_cursor,
     navTypes,
-    channel: content.channel || {},
+    channel: serializeChannelForWeb(content.channel, publicBucketUrl),
   };
 }
 
