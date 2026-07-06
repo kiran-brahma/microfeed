@@ -3,13 +3,13 @@ import RecordPageLayout from "./RecordPageLayout";
 import {htmlMetaDescription} from "../../common-src/StringUtils";
 import {humanizeMs} from "../../common-src/TimeUtils";
 
-export default function PhotoPage({item, canonicalUrl}) {
+export default function PhotoPage({item, canonicalUrl, channel, navTypes}) {
   const title = item.title || "Photo";
   const description = htmlMetaDescription(item.caption || "", false);
   const tags = item.tags || [];
 
   return (
-    <RecordPageLayout title={title} description={description} canonicalUrl={canonicalUrl}>
+    <RecordPageLayout title={title} description={description} canonicalUrl={canonicalUrl} channel={channel} navTypes={navTypes}>
       {item.image && <img className="record-page__cover" src={item.image} alt={title} />}
       {item.title && <h1 className="record-page__title">{item.title}</h1>}
       {item.caption && <p className="record-page__caption">{item.caption}</p>}

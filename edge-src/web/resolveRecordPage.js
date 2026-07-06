@@ -1,6 +1,7 @@
 import ItemRepo from "../models/ItemRepo";
 import FeedDb from "../models/FeedDb";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
+import {getPublicNavLinks} from "./publicNavTypes";
 import {STATUSES} from "../../common-src/Constants";
 
 const VISIBLE_STATUSES = new Set([STATUSES.PUBLISHED, STATUSES.UNLISTED]);
@@ -26,8 +27,9 @@ export async function resolveRecordPage(env, request, contentType, slug) {
   const publicBucketUrl = webGlobalSettings.publicBucketUrl || "";
 
   const item = serializeItemForFeed(row, {publicBucketUrl});
+  const navTypes = await getPublicNavLinks(itemRepo);
 
-  return {row, item, content, publicBucketUrl};
+  return {row, item, content, publicBucketUrl, channel: content.channel || {}, navTypes};
 }
 
 export default resolveRecordPage;

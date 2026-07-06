@@ -2,6 +2,7 @@ import ItemRepo from "../models/ItemRepo";
 import FeedDb from "../models/FeedDb";
 import AggregationResolver from "../models/AggregationResolver";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
+import {getPublicNavLinks} from "./publicNavTypes";
 import {STATUSES} from "../../common-src/Constants";
 
 const VISIBLE_STATUSES = [STATUSES.PUBLISHED, STATUSES.UNLISTED];
@@ -32,8 +33,9 @@ export async function resolveAggregatorPage(env, request, contentType, slug) {
   const members = memberRows.map((memberRow) => serializeItemForFeed(memberRow, {publicBucketUrl}));
 
   const item = serializeItemForFeed(row, {publicBucketUrl});
+  const navTypes = await getPublicNavLinks(itemRepo);
 
-  return {row, item, members, content, publicBucketUrl};
+  return {row, item, members, content, publicBucketUrl, channel: content.channel || {}, navTypes};
 }
 
 export default resolveAggregatorPage;

@@ -168,4 +168,30 @@ describe("record type web pages", () => {
       db.close();
     }
   });
+
+  test("detail page renders the public nav populated from published content", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("blog_article", {
+        status: "published",
+        title: "Navigable Post",
+        content_html: "<p>Body</p>",
+      });
+      const row = await itemRepo.getByTypeAndSlug("blog_article", "navigable-post");
+      expect(row).toBeTruthy();
+
+      const request = new Request("https://site.test/blog/navigable-post");
+      const response = await getBlogArticle({params: {slug: "navigable-post"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      // The shared public nav must appear on record detail pages, and it
+      // must be populated with a link to the type's listing (a published
+      // blog_article exists, so the "Blog" listing link should show).
+      expect(html).toContain("public-nav");
+      expect(html).toContain('href="/blog/"');
+    } finally {
+      db.close();
+    }
+  });
 });

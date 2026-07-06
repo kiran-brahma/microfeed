@@ -130,6 +130,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("layout", "enum", {
         options: LAYOUT_OPTIONS,
       }),
+      makeFieldDef("show_in_nav", "boolean", {target: "showInNav", source: "showInNav"}),
     ],
   },
 ];

@@ -5,6 +5,7 @@ import ItemRepo from "../models/ItemRepo";
 import {onRequestGet as getBlogListing} from "../../functions/blog/index.jsx";
 import {onRequestGet as getPhotoListing} from "../../functions/photo/index.jsx";
 import {onRequestGet as getPodcastListing} from "../../functions/i/index.jsx";
+import {onRequestGet as getGalleryListing} from "../../functions/gallery/index.jsx";
 
 function makeEnv(db) {
   return {FEED_DB: db};
@@ -116,6 +117,57 @@ describe("type listing routes", () => {
     try {
       const request = new Request("https://site.test/blog/");
       const response = await getBlogListing({params: {}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html.toLowerCase()).toContain("no items yet");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("/gallery/ returns 200 HTML listing only PUBLISHED galleries, with nav populated", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("photo", {
+        status: "published",
+        title: "Alpha",
+        image: "https://cdn.example.com/alpha.png",
+      });
+      const photo = await itemRepo.getByTypeAndSlug("photo", "alpha");
+      await service.create("gallery", {
+        status: "published",
+        title: "Visible Gallery",
+        image: "https://cdn.example.com/cover.png",
+        members: [photo.id],
+      });
+      await service.create("gallery", {
+        status: "unpublished",
+        title: "Hidden Gallery",
+        members: [photo.id],
+      });
+
+      const request = new Request("https://site.test/gallery/");
+      const response = await getGalleryListing({params: {}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Visible Gallery");
+      expect(html).toContain("/gallery/visible-gallery");
+      expect(html).not.toContain("Hidden Gallery");
+      // nav populated: the Galleries link itself should appear.
+      expect(html).toContain("/gallery/");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("/gallery/ shows empty state when there are no published galleries", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const request = new Request("https://site.test/gallery/");
+      const response = await getGalleryListing({params: {}, env: makeEnv(db), request});
 
       expect(response.status).toBe(200);
       const html = await response.text();

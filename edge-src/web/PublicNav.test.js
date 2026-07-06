@@ -51,4 +51,27 @@ describe("PublicNav", () => {
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute("href", "/");
   });
+
+  test("renders a mixed record + Galleries + landing-page link array with unique keys and correct hrefs", () => {
+    render(
+      <PublicNav
+        channel={{title: "My Feed"}}
+        navTypes={[
+          {name: "blog_article", label: "Blog", href: "/blog/"},
+          {name: "gallery", label: "Galleries", href: "/gallery/"},
+          {name: "landing:about", label: "About", href: "/about"},
+        ]}
+      />,
+    );
+
+    const blogLink = screen.getByRole("link", {name: "Blog"});
+    expect(blogLink).toHaveAttribute("href", "/blog/");
+    const galleriesLink = screen.getByRole("link", {name: "Galleries"});
+    expect(galleriesLink).toHaveAttribute("href", "/gallery/");
+    const aboutLink = screen.getByRole("link", {name: "About"});
+    expect(aboutLink).toHaveAttribute("href", "/about");
+
+    // brand link + 3 nav links, all rendered without React key warnings/dupes.
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+  });
 });

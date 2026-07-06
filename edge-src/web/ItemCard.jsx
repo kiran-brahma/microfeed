@@ -8,6 +8,7 @@ const BADGE_LABELS = {
   blog_article: "Blog",
   photo: "Photo",
   podcast_episode: "Podcast",
+  gallery: "Gallery",
 };
 
 function cardTitle(item) {

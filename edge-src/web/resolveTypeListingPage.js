@@ -1,7 +1,7 @@
 import ItemRepo from "../models/ItemRepo";
 import FeedDb from "../models/FeedDb";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
-import {getPublicNavTypes} from "./publicNavTypes";
+import {getPublicNavLinks} from "./publicNavTypes";
 import {STATUSES, DEFAULT_ITEMS_PER_PAGE} from "../../common-src/Constants";
 
 /**
@@ -33,7 +33,7 @@ export async function resolveTypeListingPage(env, request, contentType) {
   });
 
   const items = page.results.map((row) => serializeItemForFeed(row, {publicBucketUrl}));
-  const navTypes = await getPublicNavTypes(itemRepo);
+  const navTypes = await getPublicNavLinks(itemRepo);
 
   return {
     items,
