@@ -4,7 +4,7 @@ import TypeListingPage from "../../edge-src/web/TypeListingPage";
 import {renderReactToHtml} from "../../edge-src/common/PageUtils";
 
 export async function onRequestGet({env, request}) {
-  const resolved = await resolveTypeListingPage(env, request, "blog_article");
+  const resolved = await resolveTypeListingPage(env, request, "blog_article", "Blog");
 
   const urlObject = new URL(request.url);
   const canonicalUrl = `${urlObject.origin}/blog/`;
@@ -19,6 +19,7 @@ export async function onRequestGet({env, request}) {
       basePath="/blog/"
       nextCursor={resolved.nextCursor}
       prevCursor={resolved.prevCursor}
+      seo={resolved.seo}
     />,
   );
   return new Response(html, {

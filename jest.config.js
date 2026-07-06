@@ -4,6 +4,7 @@ module.exports = {
   },
   moduleNameMapper: {
     "\\.html$": "<rootDir>/test-utils/html-mock.js",
+    "\\.css$": "<rootDir>/test-utils/css-mock.js",
   },
   testPathIgnorePatterns: [
     "/node_modules/",

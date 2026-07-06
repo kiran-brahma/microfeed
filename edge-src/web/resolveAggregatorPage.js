@@ -4,7 +4,9 @@ import AggregationResolver from "../models/AggregationResolver";
 import {serializeItemForFeed} from "../models/FeedItemSerializer";
 import {getPublicNavLinks} from "./publicNavTypes";
 import {serializeChannelForWeb} from "./publicChannel";
-import {STATUSES} from "../../common-src/Constants";
+import {aggregatorSeo} from "./seo/buildSeo";
+import {itemPublicUrl} from "./itemPublicUrl";
+import {STATUSES, SETTINGS_CATEGORIES} from "../../common-src/Constants";
 
 const VISIBLE_STATUSES = [STATUSES.PUBLISHED, STATUSES.UNLISTED];
 const VISIBLE_STATUSES_SET = new Set(VISIBLE_STATUSES);
@@ -28,6 +30,7 @@ export async function resolveAggregatorPage(env, request, contentType, slug) {
   const content = await feedDb.getContent();
   const webGlobalSettings = (content.settings && content.settings.webGlobalSettings) || {};
   const publicBucketUrl = webGlobalSettings.publicBucketUrl || "";
+  const seoSettings = (content.settings && content.settings[SETTINGS_CATEGORIES.SEO]) || {};
 
   const resolver = new AggregationResolver(env.FEED_DB);
   const memberRows = await resolver.resolve(row, {statuses: VISIBLE_STATUSES});
@@ -35,8 +38,13 @@ export async function resolveAggregatorPage(env, request, contentType, slug) {
 
   const item = serializeItemForFeed(row, {publicBucketUrl});
   const navTypes = await getPublicNavLinks(itemRepo);
+  const channel = serializeChannelForWeb(content.channel, publicBucketUrl);
 
-  return {row, item, members, content, publicBucketUrl, channel: serializeChannelForWeb(content.channel, publicBucketUrl), navTypes};
+  const urlObject = new URL(request.url);
+  const canonicalUrl = `${urlObject.origin}${itemPublicUrl(contentType, slug)}/`;
+  const seo = aggregatorSeo({item, contentType, members, channel, seoSettings, publicBucketUrl, canonicalUrl});
+
+  return {row, item, members, content, publicBucketUrl, channel, navTypes, seo};
 }
 
 export default resolveAggregatorPage;

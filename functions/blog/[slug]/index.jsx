@@ -14,7 +14,7 @@ export async function onRequestGet({params, env, request}) {
   const urlObject = new URL(request.url);
   const canonicalUrl = `${urlObject.origin}/blog/${slug}/`;
 
-  const html = renderReactToHtml(<BlogArticlePage item={resolved.item} canonicalUrl={canonicalUrl} channel={resolved.channel} navTypes={resolved.navTypes} />);
+  const html = renderReactToHtml(<BlogArticlePage item={resolved.item} canonicalUrl={canonicalUrl} channel={resolved.channel} navTypes={resolved.navTypes} seo={resolved.seo} />);
   return new Response(html, {
     headers: {"content-type": "text/html; charset=utf-8"},
   });

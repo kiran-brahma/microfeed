@@ -32,6 +32,18 @@ async function setPublicBucketUrl(db, request, publicBucketUrl) {
   });
 }
 
+async function setSeoSettings(db, request, seoSettings) {
+  const feedDb = new FeedDb({FEED_DB: db}, request);
+  const content = await feedDb.getContent();
+  await feedDb._putSettingsToContent({
+    ...content.settings,
+    seoSettings: {
+      ...(content.settings.seoSettings || {}),
+      ...seoSettings,
+    },
+  });
+}
+
 describe("record type web pages", () => {
   test("published blog_article renders 200 with title, content_html body, and tags", async () => {
     const db = createMigratedInMemoryDatabase();
@@ -193,6 +205,157 @@ describe("record type web pages", () => {
       // no-referrer meta keeps bucket-hosted cover images from being blocked
       // by Cloudflare hotlink protection when viewed cross-origin.
       expect(html).toContain('name="referrer" content="no-referrer"');
+    } finally {
+      db.close();
+    }
+  });
+
+  test("blog detail HTML has BlogPosting JSON-LD + og:title", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("blog_article", {
+        status: "published",
+        title: "SEO Blog Post",
+        content_html: "<p>Some SEO-worthy body copy.</p>",
+        author: "Ada Lovelace",
+      });
+      const row = await itemRepo.getByTypeAndSlug("blog_article", "seo-blog-post");
+      expect(row).toBeTruthy();
+
+      const request = new Request("https://site.test/blog/seo-blog-post");
+      const response = await getBlogArticle({params: {slug: "seo-blog-post"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+
+      expect(html).toContain('property="og:title" content="SEO Blog Post"');
+      const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+      expect(scriptMatch).toBeTruthy();
+      const jsonLd = JSON.parse(scriptMatch[1]);
+      expect(jsonLd["@type"]).toBe("BlogPosting");
+      expect(jsonLd.headline).toBe("SEO Blog Post");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("podcast detail HTML has PodcastEpisode JSON-LD", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const request = new Request("https://site.test/i/seo-episode");
+      await setPublicBucketUrl(db, request, "https://cdn.example.com");
+
+      await service.create("podcast_episode", {
+        status: "published",
+        title: "SEO Episode",
+        content_html: "<p>Show notes</p>",
+        attachment: {
+          category: "audio",
+          url: "https://cdn.example.com/production/seo-ep.mp3",
+          mime_type: "audio/mpeg",
+        },
+      });
+      await itemRepo.getByTypeAndSlug("podcast_episode", "seo-episode");
+
+      const response = await getPodcastEpisode({params: {slug: "seo-episode"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+
+      const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+      expect(scriptMatch).toBeTruthy();
+      const jsonLd = JSON.parse(scriptMatch[1]);
+      expect(jsonLd["@type"]).toBe("PodcastEpisode");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("a noindex item emits robots noindex,nofollow", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("blog_article", {
+        status: "published",
+        title: "Hidden From Search",
+        content_html: "<p>Body</p>",
+        noindex: true,
+      });
+      await itemRepo.getByTypeAndSlug("blog_article", "hidden-from-search");
+
+      const request = new Request("https://site.test/blog/hidden-from-search");
+      const response = await getBlogArticle({params: {slug: "hidden-from-search"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain('name="robots" content="noindex,nofollow"');
+    } finally {
+      db.close();
+    }
+  });
+
+  test("UNLISTED item is noindex", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("blog_article", {
+        status: "unlisted",
+        title: "Unlisted SEO Post",
+        content_html: "<p>Body</p>",
+      });
+      await itemRepo.getByTypeAndSlug("blog_article", "unlisted-seo-post");
+
+      const request = new Request("https://site.test/blog/unlisted-seo-post");
+      const response = await getBlogArticle({params: {slug: "unlisted-seo-post"}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain('name="robots" content="noindex,nofollow"');
+    } finally {
+      db.close();
+    }
+  });
+
+  test("seoSettings publisher name flows into JSON-LD publisher node", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const request = new Request("https://site.test/blog/branded-post");
+      await setSeoSettings(db, request, {publisherType: "Organization", publisherName: "Acme Publishing"});
+
+      await service.create("blog_article", {
+        status: "published",
+        title: "Branded Post",
+        content_html: "<p>Body</p>",
+      });
+      await itemRepo.getByTypeAndSlug("blog_article", "branded-post");
+
+      const response = await getBlogArticle({params: {slug: "branded-post"}, env: makeEnv(db), request});
+      const html = await response.text();
+      const scriptMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+      const jsonLd = JSON.parse(scriptMatch[1]);
+      expect(jsonLd.publisher).toMatchObject({"@type": "Organization", name: "Acme Publishing"});
+    } finally {
+      db.close();
+    }
+  });
+
+  test("detail page includes feed/sitemap discovery links in <head>", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      await service.create("blog_article", {
+        status: "published",
+        title: "Discovery Post",
+        content_html: "<p>Body</p>",
+      });
+      await itemRepo.getByTypeAndSlug("blog_article", "discovery-post");
+
+      const request = new Request("https://site.test/blog/discovery-post");
+      const response = await getBlogArticle({params: {slug: "discovery-post"}, env: makeEnv(db), request});
+      const html = await response.text();
+
+      expect(html).toContain('type="application/rss+xml"');
+      expect(html).toContain('type="application/feed+json"');
+      expect(html).toContain('rel="sitemap"');
     } finally {
       db.close();
     }

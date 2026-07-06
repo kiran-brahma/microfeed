@@ -7,7 +7,8 @@ import HomePage from "../edge-src/web/HomePage";
 import {getPublicNavLinks} from "../edge-src/web/publicNavTypes";
 import {serializeChannelForWeb} from "../edge-src/web/publicChannel";
 import {renderReactToHtml} from "../edge-src/common/PageUtils";
-import {STATUSES} from "../common-src/Constants";
+import {siteSeo} from "../edge-src/web/seo/buildSeo";
+import {STATUSES, SETTINGS_CATEGORIES} from "../common-src/Constants";
 
 const HOME_ITEMS_LIMIT = 20;
 
@@ -33,12 +34,15 @@ export async function onRequestGet({env, request}) {
 
   const items = response.results.map((row) => serializeItemForFeed(row, {publicBucketUrl}));
   const navTypes = await getPublicNavLinks(itemRepo);
+  const channel = serializeChannelForWeb(content.channel, publicBucketUrl);
 
   const urlObject = new URL(request.url);
   const canonicalUrl = `${urlObject.origin}/`;
+  const seoSettings = (content.settings && content.settings[SETTINGS_CATEGORIES.SEO]) || {};
+  const seo = siteSeo({channel, seoSettings, publicBucketUrl, canonicalUrl});
 
   const html = renderReactToHtml(
-    <HomePage channel={serializeChannelForWeb(content.channel, publicBucketUrl)} items={items} canonicalUrl={canonicalUrl} navTypes={navTypes} />,
+    <HomePage channel={channel} items={items} canonicalUrl={canonicalUrl} navTypes={navTypes} seo={seo} />,
   );
   return new Response(html, {
     headers: {"content-type": "text/html; charset=utf-8"},

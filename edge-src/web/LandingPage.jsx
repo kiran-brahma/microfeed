@@ -7,14 +7,14 @@ function itemTitle(entry) {
   return entry.title || entry.caption || entry.excerpt || entry.slug;
 }
 
-export default function LandingPage({item, members, canonicalUrl, channel, navTypes}) {
+export default function LandingPage({item, members, canonicalUrl, channel, navTypes, seo}) {
   const description = htmlMetaDescription(item.content_html || "", true);
   const entries = members || [];
   const layout = item.layout === "grid" ? "grid" : "list";
   const gridClass = layout === "grid" ? "landing-page__grid" : "landing-page__list";
 
   return (
-    <RecordPageLayout title={item.title} description={description} canonicalUrl={canonicalUrl} channel={channel} navTypes={navTypes}>
+    <RecordPageLayout title={item.title} description={description} canonicalUrl={canonicalUrl} channel={channel} navTypes={navTypes} seo={seo}>
       <h1 className="record-page__title">{item.title}</h1>
       {item.content_html && (
         <div className="record-page__body" dangerouslySetInnerHTML={{__html: item.content_html}} />
