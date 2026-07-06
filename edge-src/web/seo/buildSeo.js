@@ -140,6 +140,25 @@ function siteOrigin(canonicalUrl) {
   }
 }
 
+// OG/Twitter/JSON-LD image URLs must be absolute - social + AI crawlers
+// reject relative ones. absoluteImage() only resolves bucket-relative paths
+// via publicBucketUrl; a root-relative path (the default channel image
+// "/assets/...", or any image when publicBucketUrl is unset) stays relative.
+// This resolves that remaining relative case against the page origin, the
+// same way sitemap.xml does.
+function ensureAbsolute(url, origin) {
+  if (!url) {
+    return url;
+  }
+  if (/^https?:\/\//.test(url)) {
+    return url;
+  }
+  if (origin && url.startsWith("/")) {
+    return `${origin}${url}`;
+  }
+  return url;
+}
+
 /**
  * Home-page SEO: WebSite node + publisher (Organization|Person).
  */
@@ -151,7 +170,7 @@ export function siteSeo({channel = {}, seoSettings = {}, publicBucketUrl = "", c
     contentHtml: null,
     fallback: channel.description || "",
   });
-  const image = resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl) || channel.image || null;
+  const image = ensureAbsolute(resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl) || channel.image || null, siteOrigin(canonicalUrl));
   const keywords = mergeKeywords([], seoSettings.keyTerms);
   const publisher = publisherNode(seoSettings, channel, publicBucketUrl);
 
@@ -211,11 +230,14 @@ function buildBlogPostingSeo({item, channel, seoSettings, publicBucketUrl, canon
     contentHtml: item.content_html,
     fallback: channel.description || "",
   });
-  const image = absoluteImage(item.shareImage, publicBucketUrl)
+  const image = ensureAbsolute(
+    absoluteImage(item.shareImage, publicBucketUrl)
     || absoluteImage(item.image, publicBucketUrl)
     || resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
     || channel.image
-    || null;
+    || null,
+    siteOrigin(canonicalUrl),
+  );
   const publishedTime = item.date_published_ms !== undefined && item.date_published_ms !== null
     ? msToRFC3339(item.date_published_ms)
     : null;
@@ -264,11 +286,14 @@ function buildPodcastEpisodeSeo({item, channel, seoSettings, publicBucketUrl, ca
     contentHtml: item.content_html,
     fallback: channel.description || "",
   });
-  const image = absoluteImage(item.shareImage, publicBucketUrl)
+  const image = ensureAbsolute(
+    absoluteImage(item.shareImage, publicBucketUrl)
     || absoluteImage(item.image, publicBucketUrl)
     || resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
     || channel.image
-    || null;
+    || null,
+    siteOrigin(canonicalUrl),
+  );
   const publishedTime = item.date_published_ms !== undefined && item.date_published_ms !== null
     ? msToRFC3339(item.date_published_ms)
     : null;
@@ -329,11 +354,14 @@ function buildPhotoSeo({item, channel, seoSettings, publicBucketUrl, canonicalUr
     contentHtml: item.content_html,
     fallback: channel.description || "",
   });
-  const image = absoluteImage(item.shareImage, publicBucketUrl)
+  const image = ensureAbsolute(
+    absoluteImage(item.shareImage, publicBucketUrl)
     || absoluteImage(item.image, publicBucketUrl)
     || resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
     || channel.image
-    || null;
+    || null,
+    siteOrigin(canonicalUrl),
+  );
   const takenMs = item.taken_date !== undefined && item.taken_date !== null ? item.taken_date : item.date_published_ms;
   const publishedTime = takenMs !== undefined && takenMs !== null ? msToRFC3339(takenMs) : null;
   const keywords = mergeKeywords(item.tags, seoSettings.keyTerms);
@@ -409,12 +437,15 @@ function buildGallerySeo({item, members, channel, seoSettings, publicBucketUrl, 
       name: member.title || member.caption || undefined,
       caption: member.caption || undefined,
     }));
-  const image = absoluteImage(item.shareImage, publicBucketUrl)
+  const image = ensureAbsolute(
+    absoluteImage(item.shareImage, publicBucketUrl)
     || absoluteImage(item.image, publicBucketUrl)
     || (memberImages[0] && memberImages[0].contentUrl)
     || resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
     || channel.image
-    || null;
+    || null,
+    siteOrigin(canonicalUrl),
+  );
   const keywords = mergeKeywords(item.tags, seoSettings.keyTerms);
   const publisher = publisherNode(seoSettings, channel, publicBucketUrl);
 
@@ -462,11 +493,14 @@ function buildLandingPageSeo({item, members, channel, seoSettings, publicBucketU
     contentHtml: item.content_html,
     fallback: channel.description || "",
   });
-  const image = absoluteImage(item.shareImage, publicBucketUrl)
+  const image = ensureAbsolute(
+    absoluteImage(item.shareImage, publicBucketUrl)
     || absoluteImage(item.image, publicBucketUrl)
     || resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
     || channel.image
-    || null;
+    || null,
+    siteOrigin(canonicalUrl),
+  );
   const keywords = mergeKeywords(item.tags, seoSettings.keyTerms);
   const publisher = publisherNode(seoSettings, channel, publicBucketUrl);
 
@@ -539,7 +573,7 @@ export function listingSeo({typeLabel, items = [], channel = {}, seoSettings = {
   const description = pageDescription({
     fallback: channel.description || "",
   });
-  const image = resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl) || channel.image || null;
+  const image = ensureAbsolute(resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl) || channel.image || null, siteOrigin(canonicalUrl));
   const keywords = mergeKeywords([], seoSettings.keyTerms);
 
   const itemListElement = items.map((entry, index) => ({

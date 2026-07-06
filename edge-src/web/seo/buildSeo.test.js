@@ -349,3 +349,42 @@ describe("keywords merge", () => {
     expect(testingCount).toBe(1);
   });
 });
+
+describe("image URLs are always absolute (OG/Twitter/JSON-LD require it)", () => {
+  const rootRelativeChannel = {title: "Site", description: "d", image: "/assets/default/channel-image.png"};
+
+  test("siteSeo resolves a root-relative channel image against the page origin", () => {
+    const seo = siteSeo({
+      channel: rootRelativeChannel,
+      seoSettings: {},
+      publicBucketUrl: "",
+      canonicalUrl: "https://site.test/",
+    });
+    expect(seo.image).toBe("https://site.test/assets/default/channel-image.png");
+    expect(seo.jsonLd.image || seo.image).toMatch(/^https?:\/\//);
+  });
+
+  test("recordSeo resolves a root-relative item image against the page origin", () => {
+    const seo = recordSeo({
+      item: {title: "P", slug: "p", content_type: "blog_article", image: "/media-x/production/images/cover.jpg"},
+      contentType: "blog_article",
+      channel: rootRelativeChannel,
+      seoSettings: {},
+      publicBucketUrl: "",
+      canonicalUrl: "https://site.test/blog/p/",
+    });
+    expect(seo.image).toBe("https://site.test/media-x/production/images/cover.jpg");
+  });
+
+  test("already-absolute image is left untouched", () => {
+    const seo = recordSeo({
+      item: {title: "P", slug: "p", content_type: "blog_article", image: "https://cdn.example.com/x.jpg"},
+      contentType: "blog_article",
+      channel: rootRelativeChannel,
+      seoSettings: {},
+      publicBucketUrl: "https://cdn.example.com",
+      canonicalUrl: "https://site.test/blog/p/",
+    });
+    expect(seo.image).toBe("https://cdn.example.com/x.jpg");
+  });
+});
