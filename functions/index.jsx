@@ -5,6 +5,7 @@ import {serializeItemForFeed} from "../edge-src/models/FeedItemSerializer";
 import {listTypes} from "../edge-src/registry/ContentTypeRegistry";
 import HomePage from "../edge-src/web/HomePage";
 import {getPublicNavLinks} from "../edge-src/web/publicNavTypes";
+import {serializeChannelForWeb} from "../edge-src/web/publicChannel";
 import {renderReactToHtml} from "../edge-src/common/PageUtils";
 import {STATUSES} from "../common-src/Constants";
 
@@ -37,7 +38,7 @@ export async function onRequestGet({env, request}) {
   const canonicalUrl = `${urlObject.origin}/`;
 
   const html = renderReactToHtml(
-    <HomePage channel={content.channel || {}} items={items} canonicalUrl={canonicalUrl} navTypes={navTypes} />,
+    <HomePage channel={serializeChannelForWeb(content.channel, publicBucketUrl)} items={items} canonicalUrl={canonicalUrl} navTypes={navTypes} />,
   );
   return new Response(html, {
     headers: {"content-type": "text/html; charset=utf-8"},
