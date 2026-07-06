@@ -37,6 +37,7 @@ describe("ops/db/init.sql", () => {
         "item_relations",
         "item_tags",
         "items",
+        "media",
         "settings",
         "tags",
       ]);

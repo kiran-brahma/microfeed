@@ -7,6 +7,7 @@ import {CloudArrowUpIcon} from "@heroicons/react/24/outline";
 import {ENCLOSURE_CATEGORIES_DICT, ENCLOSURE_CATEGORIES} from "../../../../../common-src/Constants";
 import {randomHex, urlJoinWithRelative} from "../../../../../common-src/StringUtils";
 import Requests from "../../../../common/requests";
+import MediaLibrary from "../../../MediaLibrary";
 import {showToast} from "../../../../common/ToastUtils";
 
 const UPLOAD_STATUS__START = 1;
@@ -140,6 +141,14 @@ export default class RichEditorMediaDialog extends React.Component {
     const {mode, url, uploadStatus, progressText} = this.state;
     const disabledClose = false;
     const uploading = uploadStatus === UPLOAD_STATUS__START;
+    const isImage = mediaType === 'image';
+    const radioButtons = [
+      {'name': 'Upload a new file', 'value': 'upload', 'checked': mode === 'upload'},
+    ];
+    if (isImage) {
+      radioButtons.push({'name': 'Choose from uploaded', 'value': 'library', 'checked': mode === 'library'});
+    }
+    radioButtons.push({'name': 'From URL', 'value': 'url', 'checked': mode === 'url'});
     return (
       <AdminDialog
         title={`Insert ${mediaType}`}
@@ -151,18 +160,7 @@ export default class RichEditorMediaDialog extends React.Component {
           <AdminRadio
             groupName="media-insert"
             customClass="text-sm font-semibold"
-            buttons={[
-              {
-                'name': 'Upload a new file',
-                'value': 'upload',
-                'checked': mode === 'upload',
-              },
-              {
-                'name': 'From URL',
-                'value': 'url',
-                'checked': mode === 'url',
-              },
-            ]}
+            buttons={radioButtons}
             onChange={(e) => {
               this.setState({mode: e.target.value});
             }}
@@ -170,7 +168,18 @@ export default class RichEditorMediaDialog extends React.Component {
           />
         </div>
         <div>
-          {mode === 'upload' ?
+          {mode === 'library' && isImage ?
+            <MediaLibrary
+              selectMode
+              onSelect={(absoluteUrl) => {
+                // Editor content stores absolute urls, so insert the browser url.
+                this.setState({url: absoluteUrl}, () => {
+                  this.insertMedia();
+                  setIsOpen(false);
+                });
+              }}
+            /> :
+          mode === 'upload' ?
             <UploadNewFile
               mediaType={mediaType}
               uploading={uploading}

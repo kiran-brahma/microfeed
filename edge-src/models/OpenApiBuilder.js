@@ -1,4 +1,5 @@
 import {listTypes} from "../registry/ContentTypeRegistry";
+import {OUR_BRAND} from "../../common-src/Constants";
 
 const API_KEY_SECURITY_SCHEME_NAME = "x-microfeedapi-key";
 
@@ -444,7 +445,7 @@ export function buildOpenApiSpec({baseUrl, version}) {
   return {
     openapi: "3.0.3",
     info: {
-      title: "microfeed API",
+      title: `${OUR_BRAND.brandName} API`,
       version,
     },
     servers: [{url: baseUrl}],

@@ -73,3 +73,21 @@ CREATE TABLE IF NOT EXISTS item_relations (
 CREATE UNIQUE INDEX IF NOT EXISTS item_relations_parent_item_id_rel_type_child_item_id on item_relations (parent_item_id, rel_type, child_item_id);
 CREATE UNIQUE INDEX IF NOT EXISTS item_relations_parent_item_id_rel_type_position on item_relations (parent_item_id, rel_type, position);
 CREATE INDEX IF NOT EXISTS item_relations_child_item_id on item_relations (child_item_id);
+
+CREATE TABLE IF NOT EXISTS media (
+  id VARCHAR(11) PRIMARY KEY,
+  r2_key VARCHAR(1024) NOT NULL,
+  url VARCHAR(1024) NOT NULL,
+  content_hash VARCHAR(64),
+  size INTEGER,
+  content_type VARCHAR(100),
+  category VARCHAR(20) DEFAULT 'image',
+  width INTEGER,
+  height INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS media_r2_key on media (r2_key);
+CREATE INDEX IF NOT EXISTS media_content_hash on media (content_hash);
+CREATE INDEX IF NOT EXISTS media_created_at on media (created_at);

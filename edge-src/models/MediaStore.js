@@ -1,4 +1,6 @@
 import {AwsClient} from "aws4fetch";
+import {XMLParser} from "fast-xml-parser";
+import {projectPrefix} from "../../common-src/R2Utils";
 
 function isExternalOrEmpty(internalUrl) {
   if (!internalUrl) {
@@ -39,6 +41,65 @@ export class MediaStore {
     });
 
     return aws.fetch(request);
+  }
+
+  /**
+   * List image objects in the public bucket for this project/environment via
+   * the S3 ListObjectsV2 API. Returns an array of
+   * {key, size, lastModified} where `key` is the full object key (which,
+   * matching how uploads are stored, already includes the project/env prefix
+   * and equals the internal media url).
+   */
+  async listObjects() {
+    const {env} = this;
+    const accessKeyId = `${env.R2_ACCESS_KEY_ID}`;
+    const secretAccessKey = `${env.R2_SECRET_ACCESS_KEY}`;
+    const bucket = env.R2_PUBLIC_BUCKET;
+    const prefix = `${projectPrefix(env)}/images/`;
+
+    const aws = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      service: "s3",
+      region: "auto",
+    });
+
+    const parser = new XMLParser();
+    const objects = [];
+    let continuationToken = null;
+
+    // Paginate through ListObjectsV2 results.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let endpoint = `https://${bucket}.${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/?list-type=2&prefix=${encodeURIComponent(prefix)}`;
+      if (continuationToken) {
+        endpoint += `&continuation-token=${encodeURIComponent(continuationToken)}`;
+      }
+
+      const response = await aws.fetch(new Request(endpoint, {method: "GET"}));
+      const xmlText = await response.text();
+      const parsed = parser.parse(xmlText);
+      const result = parsed && parsed.ListBucketResult ? parsed.ListBucketResult : {};
+
+      const contents = result.Contents;
+      const list = Array.isArray(contents) ? contents : (contents ? [contents] : []);
+      list.forEach((entry) => {
+        objects.push({
+          key: entry.Key,
+          size: typeof entry.Size === "number" ? entry.Size : parseInt(entry.Size, 10) || 0,
+          lastModified: entry.LastModified || null,
+        });
+      });
+
+      const isTruncated = result.IsTruncated === true || result.IsTruncated === "true";
+      if (isTruncated && result.NextContinuationToken) {
+        continuationToken = result.NextContinuationToken;
+      } else {
+        break;
+      }
+    }
+
+    return objects;
   }
 }
 
