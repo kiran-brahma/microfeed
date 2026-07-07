@@ -47,7 +47,10 @@ describe("admin item edit page", () => {
 
       expect(response.status).toBe(200);
       const html = await response.text();
-      expect(html).toContain("Related items");
+      // The admin editor UI mounts client-side after hydration, so the SSR
+      // shell won't contain widget labels like "Related items" — only the
+      // hydration payload embedded in the page.
+      expect(html).toContain("related_items");
       expect(html).toContain(relatedId);
       expect(await itemRepo.getById(sourceId)).toBeTruthy();
     } finally {

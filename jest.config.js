@@ -6,6 +6,7 @@ module.exports = {
     "\\.html$": "<rootDir>/test-utils/html-mock.js",
     "\\.css$": "<rootDir>/test-utils/css-mock.js",
     "^react-drag-drop-files$": "<rootDir>/test-utils/react-drag-drop-files-mock.jsx",
+    "webpack-stats\\.json$": "<rootDir>/test-utils/webpack-stats-mock.js",
   },
   testPathIgnorePatterns: [
     "/node_modules/",
