@@ -116,6 +116,6 @@ describe("HomePage", () => {
     expect(screen.getByText("Featured Story")).toBeInTheDocument();
     expect(screen.getByText("Filtered Story")).toBeInTheDocument();
     expect(screen.queryByText("No recent items yet.")).not.toBeInTheDocument();
-    expect(screen.queryByText(/related content/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Read next")).not.toBeInTheDocument();
   });
 });

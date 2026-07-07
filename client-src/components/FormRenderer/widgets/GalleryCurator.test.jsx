@@ -26,6 +26,14 @@ const MIXED_ITEMS = [
   { id: "a1", content_type: "blog_article", title: "Article One" },
 ];
 
+const RELATED_CONTENT_ITEMS = [
+  { id: "p1", content_type: "photo", title: "Photo One", image: "https://cdn.example.com/one.jpg", status: "published" },
+  { id: "p2", content_type: "photo", title: "Photo Two", image: "https://cdn.example.com/two.jpg", status: "published" },
+  { id: "a1", content_type: "blog_article", title: "Article One", status: "unpublished" },
+  { id: "g1", content_type: "gallery", title: "Gallery One", status: "published" },
+  { id: "h1", content_type: "home_page", title: "Home Page", status: "published" },
+];
+
 beforeEach(() => {
   Requests.axiosGet.mockReset();
   Requests.axiosGet.mockResolvedValue({ data: { items: PHOTOS } });
@@ -64,6 +72,30 @@ describe("GalleryCurator", () => {
     await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type__in=photo,blog_article"));
     expect(await screen.findByRole("option", { name: "photo: Photo One" })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: "blog_article: Article One" })).toBeInTheDocument();
+  });
+
+  test("related-content field filters to published non-home candidates", async () => {
+    Requests.axiosGet.mockResolvedValueOnce({ data: { items: RELATED_CONTENT_ITEMS } });
+    const fieldDef = {
+      key: "related_items",
+      kind: "reference",
+      label: "Related items",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      onlyPublished: true,
+    };
+
+    render(<GalleryCurator fieldDef={fieldDef} value={["p1"]} onChange={jest.fn()} error={null} />);
+
+    await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type__in=podcast_episode,blog_article,photo,gallery,landing_page"));
+    expect(await screen.findByRole("option", { name: "photo: Photo Two" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "blog_article: Article One" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "home_page: Home Page" })).not.toBeInTheDocument();
   });
 
   test("Move-down on p1 calls onChange([p2, p1])", async () => {

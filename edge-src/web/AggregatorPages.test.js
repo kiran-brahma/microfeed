@@ -111,6 +111,14 @@ async function createHomePage(service, itemRepo, title, extra = {}) {
   return itemRepo.getByTypeAndSlug("home_page", "home");
 }
 
+async function linkRelatedContent(db, parentId, childIds) {
+  for (const [position, childId] of childIds.entries()) {
+    await db.prepare(
+      "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+    ).bind(parentId, childId, "related_content", position).run();
+  }
+}
+
 describe("aggregator + home web pages", () => {
   test("gallery with 2 ordered member photos renders 200 with both photos in order, linking to /photo/<slug>", async () => {
     const db = createMigratedInMemoryDatabase();
@@ -413,6 +421,59 @@ describe("aggregator + home web pages", () => {
       expect(jsonLd).toBeTruthy();
       expect(jsonLd["@type"]).toBe("WebSite");
       expect(jsonLd.publisher).toMatchObject({"@type": "Organization", name: "My SEO Feed Org"});
+    } finally {
+      db.close();
+    }
+  });
+
+  test("gallery page renders the shared Read next strip for related items", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const relatedBlog = await createBlogArticle(service, itemRepo, "Gallery Related Blog");
+      const relatedPhoto = await createPhoto(service, itemRepo, "Gallery Related Photo");
+
+      const gallery = await createGallery(service, itemRepo, "Gallery Strip Source", [], {
+        content_html: "<p>A curated set</p>",
+      });
+      await linkRelatedContent(db, gallery.id, [relatedBlog.id, relatedPhoto.id]);
+
+      const request = new Request("https://site.test/gallery/gallery-strip-source");
+      const response = await getGallery({params: {slug: "gallery-strip-source"}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Read next");
+      expect(html).toContain("Gallery Related Blog");
+      expect(html).toContain("Gallery Related Photo");
+      expect(html).toContain("class=\"item-card\"");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("landing page renders the shared Read next strip for related items", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const relatedBlog = await createBlogArticle(service, itemRepo, "Landing Related Blog");
+      const relatedPhoto = await createPhoto(service, itemRepo, "Landing Related Photo");
+
+      const landing = await createLandingPage(service, itemRepo, "Landing Strip Source", {
+        content_html: "<p>Landing intro</p>",
+        content_types: ["blog_article", "photo"],
+      });
+      await linkRelatedContent(db, landing.id, [relatedBlog.id, relatedPhoto.id]);
+
+      const request = new Request("https://site.test/landing-strip-source");
+      const response = await getLanding({params: {slug: "landing-strip-source"}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Read next");
+      expect(html).toContain("Landing Related Blog");
+      expect(html).toContain("Landing Related Photo");
+      expect(html).toContain("class=\"item-card\"");
     } finally {
       db.close();
     }

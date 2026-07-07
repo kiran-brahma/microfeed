@@ -31,6 +31,7 @@
 | itunes:season | number(int,≥1) | – | itunes:season (source `_microfeed.*`) |
 | itunes:episode | number(int,≥1) | – | itunes:episode (source `_microfeed.*`) |
 | itunes:explicit | boolean | – | itunes:explicit (source `_microfeed.*`) |
+| related_items | reference | – | related_items |
 
 ## blog_article (record) — feeds: JSON + blog RSS `/blog/rss` + web `/blog/[slug]`
 | key | kind | required | target |
@@ -43,6 +44,7 @@
 | author | text | – | author |
 | tags | tags | – | tags |
 | date_published_ms | date | – | pubDateMs |
+| related_items | reference | – | related_items |
 
 ## photo (record) — feeds: JSON + web `/photo/[slug]`
 | key | kind | required | target |
@@ -53,6 +55,7 @@
 | caption | text | – | caption |
 | tags | tags | – | tags |
 | taken_date | date | – | pubDateMs |
+| related_items | reference | – | related_items |
 
 ## gallery (aggregator, explicit ordered Photos) — feeds: JSON + web `/gallery/[slug]`
 | key | kind | required | target |
@@ -63,6 +66,7 @@
 | image | image | – | image (cover) |
 | members | reference | ✅ | members |
 | tags | tags | – | tags |
+| related_items | reference | – | related_items |
 
 ## landing_page (aggregator, dynamic filter) — feeds: web `/[slug]` + JSON
 | key | kind | required | target |
@@ -76,8 +80,9 @@
 | sort | enum(newest_first,oldest_first) | – | sort |
 | limit | number(int,≥1) | – | limit |
 | layout | enum(list,grid) | – | layout |
+| related_items | reference | – | related_items |
 
-> `filter_tags` is a plain string list (kind `string_list`), not the relational `tags` field kind — it's filter *config* stored in the item's own `data` blob, not a tag link on the landing page item itself. This keeps `landing_page` free of any `tags`/`reference` field kind, so `ContentService` never creates relational side effects (item_tags/item_relations rows) for it.
+> `filter_tags` is a plain string list (kind `string_list`), not the relational `tags` field kind — it's filter *config* stored in the item's own `data` blob, not a tag link on the landing page item itself. `related_items` is the separate related-content relation field; it writes `related_content` rows in `item_relations` and is the only relational side effect landing pages participate in.
 
 ## home_page (singleton page) — feeds: web `/` + JSON
 | key | kind | required | target |

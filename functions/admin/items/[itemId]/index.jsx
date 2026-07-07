@@ -5,6 +5,7 @@ import {renderReactToHtml} from "../../../../edge-src/common/PageUtils";
 import OnboardingChecker from "../../../../common-src/OnboardingUtils";
 import {STATUSES} from "../../../../common-src/Constants";
 import {serializeItemForFeed} from "../../../../edge-src/models/FeedItemSerializer";
+import {RELATED_CONTENT} from "../../../../edge-src/models/RelationRepo";
 
 export async function onRequestGet({env, params, request}) {
   const { itemId } = params;
@@ -35,6 +36,10 @@ export async function onRequestGet({env, params, request}) {
       tagIds: row.tagIds || [],
       members: row.members || [],
     });
+    content.item.related_items = await feed.aggregationResolver.relationRepo.getMemberIds(
+      row.id,
+      RELATED_CONTENT,
+    );
     if (content.item.content_type === 'gallery') {
       content.item.members = (row.members || []).map((m) => m.id);
     }

@@ -35,6 +35,8 @@ export async function resolveAggregatorPage(env, request, contentType, slug) {
   const resolver = new AggregationResolver(env.FEED_DB);
   const memberRows = await resolver.resolve(row, {statuses: VISIBLE_STATUSES});
   const members = memberRows.map((memberRow) => serializeItemForFeed(memberRow, {publicBucketUrl}));
+  const relatedRows = await resolver.resolveRelated(row, {statuses: [STATUSES.PUBLISHED]});
+  const relatedItems = relatedRows.map((relatedRow) => serializeItemForFeed(relatedRow, {publicBucketUrl}));
 
   const item = serializeItemForFeed(row, {publicBucketUrl});
   const navTypes = await getPublicNavLinks(itemRepo);
@@ -44,7 +46,7 @@ export async function resolveAggregatorPage(env, request, contentType, slug) {
   const canonicalUrl = `${urlObject.origin}${itemPublicUrl(contentType, slug)}/`;
   const seo = aggregatorSeo({item, contentType, members, channel, seoSettings, publicBucketUrl, canonicalUrl});
 
-  return {row, item, members, content, publicBucketUrl, channel, navTypes, seo};
+  return {row, item, members, relatedItems, content, publicBucketUrl, channel, navTypes, seo};
 }
 
 export default resolveAggregatorPage;

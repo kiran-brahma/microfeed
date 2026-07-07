@@ -1,6 +1,6 @@
 import FeedCrudManager from "./FeedCrudManager";
 import TagLinkRepo from "./TagLinkRepo";
-import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
+import RelationRepo from "./RelationRepo";
 import {STATUSES} from "../../common-src/Constants";
 import {randomShortUUID} from "../../common-src/StringUtils";
 import {msToRFC3339, rfc3399ToMs} from "../../common-src/TimeUtils";
@@ -164,8 +164,8 @@ function getTagsFieldDef(typeName) {
   return getFieldDefs(typeName).find((fieldDef) => fieldDef.kind === "tags");
 }
 
-function getReferenceFieldDef(typeName) {
-  return getFieldDefs(typeName).find((fieldDef) => fieldDef.kind === "reference");
+function getReferenceFieldDefs(typeName) {
+  return getFieldDefs(typeName).filter((fieldDef) => fieldDef.kind === "reference");
 }
 
 function rowToPublicItem(typeName, row) {
@@ -219,13 +219,20 @@ export default class ContentService extends FeedCrudManager {
 
     const invalidIds = childIds.filter((childId) => {
       const row = rowsById.get(childId);
-      return !row || !allowedContentTypes.includes(row.content_type);
+      if (!row || !allowedContentTypes.includes(row.content_type)) {
+        return true;
+      }
+      if (fieldDef?.onlyPublished && row.status !== STATUSES.PUBLISHED) {
+        return true;
+      }
+      return false;
     });
 
     if (invalidIds.length > 0) {
+      const visibilityLabel = fieldDef?.onlyPublished ? "published " : "";
       return validationError(
         fieldDef?.key || "reference",
-        `${fieldDef?.label || fieldDef?.key || "Items"} must reference existing ${allowedContentTypes.join(", ")} items: ${invalidIds.join(", ")}`,
+        `${fieldDef?.label || fieldDef?.key || "Items"} must reference existing ${visibilityLabel}${allowedContentTypes.join(", ")} items: ${invalidIds.join(", ")}`,
       );
     }
 
@@ -268,17 +275,15 @@ export default class ContentService extends FeedCrudManager {
       deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
     }
 
-    const referenceFieldDef = getReferenceFieldDef(typeName);
-    const isHomePage = typeName === "home_page";
-    let memberIds = [];
-    if (referenceFieldDef) {
-      memberIds = inputPayload[referenceFieldDef.key] || [];
-      const membersValidation = await this._validateReferenceItems(referenceFieldDef, memberIds);
-      if (membersValidation.errors.length > 0) {
-        return membersValidation;
+    const referenceFieldDefs = getReferenceFieldDefs(typeName);
+    for (const fieldDef of referenceFieldDefs) {
+      const referenceIds = inputPayload[fieldDef.key] || [];
+      const referenceValidation = await this._validateReferenceItems(fieldDef, referenceIds);
+      if (referenceValidation.errors.length > 0) {
+        return referenceValidation;
       }
-      if (!isHomePage) {
-        deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
+      if (fieldDef.relationType) {
+        deleteByPath(internalItem, fieldDef.feedMapping.target);
       }
     }
 
@@ -310,8 +315,12 @@ export default class ContentService extends FeedCrudManager {
       await this.tagLinkRepo.setItemTags(itemId, tagIds);
     }
 
-    if (referenceFieldDef && !isHomePage) {
-      await this.relationRepo.setMembers(itemId, memberIds, GALLERY_MEMBER);
+    for (const fieldDef of referenceFieldDefs) {
+      if (!fieldDef.relationType) {
+        continue;
+      }
+      const referenceIds = inputPayload[fieldDef.key] || [];
+      await this.relationRepo.setMembers(itemId, referenceIds, fieldDef.relationType);
     }
 
     return itemId;
@@ -349,18 +358,20 @@ export default class ContentService extends FeedCrudManager {
       setByPath(existingPublicItem, tagsFieldDef.feedMapping.source, existingTagIds);
     }
 
-    const referenceFieldDef = getReferenceFieldDef(typeName);
-    const isHomePage = typeName === "home_page";
-    if (referenceFieldDef && !isHomePage) {
-      const existingMemberIds = await this.relationRepo.getMemberIds(itemId, GALLERY_MEMBER);
-      setByPath(existingPublicItem, referenceFieldDef.feedMapping.source, existingMemberIds);
+    const referenceFieldDefs = getReferenceFieldDefs(typeName);
+    for (const fieldDef of referenceFieldDefs) {
+      if (!fieldDef.relationType) {
+        continue;
+      }
+      const existingMemberIds = await this.relationRepo.getMemberIds(itemId, fieldDef.relationType);
+      setByPath(existingPublicItem, fieldDef.feedMapping.source, existingMemberIds);
     }
 
     const mergedPublicItem = mergeDeep(existingPublicItem, inputPayload);
 
-    if (referenceFieldDef) {
-      const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
-      const membersValidation = await this._validateReferenceItems(referenceFieldDef, mergedMemberIds);
+    for (const fieldDef of referenceFieldDefs) {
+      const mergedMemberIds = getByPath(mergedPublicItem, fieldDef.feedMapping.source) || [];
+      const membersValidation = await this._validateReferenceItems(fieldDef, mergedMemberIds);
       if (membersValidation.errors.length > 0) {
         return membersValidation;
       }
@@ -381,8 +392,10 @@ export default class ContentService extends FeedCrudManager {
     if (tagsFieldDef) {
       deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
     }
-    if (referenceFieldDef && !isHomePage) {
-      deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
+    for (const fieldDef of referenceFieldDefs) {
+      if (fieldDef.relationType) {
+        deleteByPath(internalItem, fieldDef.feedMapping.target);
+      }
     }
 
     // On update, an explicit slug in the payload takes effect; otherwise the
@@ -414,9 +427,12 @@ export default class ContentService extends FeedCrudManager {
       await this.tagLinkRepo.setItemTags(itemId, mergedTagIds);
     }
 
-    if (referenceFieldDef && !isHomePage) {
-      const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
-      await this.relationRepo.setMembers(itemId, mergedMemberIds, GALLERY_MEMBER);
+    for (const fieldDef of referenceFieldDefs) {
+      if (!fieldDef.relationType) {
+        continue;
+      }
+      const mergedMemberIds = getByPath(mergedPublicItem, fieldDef.feedMapping.source) || [];
+      await this.relationRepo.setMembers(itemId, mergedMemberIds, fieldDef.relationType);
     }
 
     return itemId;

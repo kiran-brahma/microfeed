@@ -1,6 +1,7 @@
 import AggregationResolver from "./AggregationResolver";
 import ContentService from "./ContentService";
 import ItemRepo from "./ItemRepo";
+import {RELATED_CONTENT} from "./RelationRepo";
 import TagService from "./TagService";
 import {STATUSES} from "../../common-src/Constants";
 
@@ -292,6 +293,69 @@ describe("AggregationResolver", () => {
 
       const resolved = await resolver.resolve(photoRow);
       expect(resolved).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("related content resolve returns published non-home items in updated_at order, caps at 3, and includes reverse links", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const itemRepo = new ItemRepo(db);
+    const contentService = makeContentService(db);
+    const resolver = new AggregationResolver(db);
+
+    try {
+      const sourceId = await createBlogArticle(contentService, itemRepo, "Source Post");
+      const outgoingPhoto = await createPhoto(contentService, itemRepo, "Outgoing Photo");
+      await itemRepo.update(outgoingPhoto, {title: "Outgoing Photo Updated"});
+
+      const outgoingGallery = await createGallery(contentService, itemRepo, "Outgoing Gallery", []);
+      await itemRepo.update(outgoingGallery.id, {title: "Outgoing Gallery Updated"});
+
+      const outgoingLanding = await createLandingPage(contentService, itemRepo, "Outgoing Landing", {});
+      await itemRepo.update(outgoingLanding.id, {title: "Outgoing Landing Updated"});
+
+      const incomingOnlyBlog = await createBlogArticle(contentService, itemRepo, "Incoming Only Blog");
+      await itemRepo.update(incomingOnlyBlog, {title: "Incoming Only Blog Updated"});
+
+      const hiddenRelated = await createBlogArticle(contentService, itemRepo, "Hidden Related");
+      await itemRepo.update(hiddenRelated, {status: STATUSES.UNPUBLISHED});
+
+      const homeId = await contentService.create("home_page", {
+        status: "published",
+        title: "Home",
+      });
+
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(sourceId, outgoingPhoto, RELATED_CONTENT, 0).run();
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(sourceId, outgoingGallery.id, RELATED_CONTENT, 0).run();
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(sourceId, outgoingLanding.id, RELATED_CONTENT, 0).run();
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(incomingOnlyBlog, sourceId, RELATED_CONTENT, 0).run();
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(sourceId, hiddenRelated, RELATED_CONTENT, 0).run();
+      await db.prepare(
+        "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+      ).bind(sourceId, homeId, RELATED_CONTENT, 0).run();
+
+      const sourceRow = await itemRepo.getById(sourceId);
+      const resolved = await resolver.resolveRelated(sourceRow);
+
+      expect(resolved.map((row) => row.id)).toEqual([
+        incomingOnlyBlog,
+        outgoingLanding.id,
+        outgoingGallery.id,
+      ]);
+      expect(resolved).toHaveLength(3);
+      expect(resolved.every((row) => row.status === STATUSES.PUBLISHED)).toBe(true);
+      expect(resolved.every((row) => row.content_type !== "home_page")).toBe(true);
     } finally {
       db.close();
     }

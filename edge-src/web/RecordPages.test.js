@@ -44,6 +44,14 @@ async function setSeoSettings(db, request, seoSettings) {
   });
 }
 
+async function linkRelatedContent(db, parentId, childIds) {
+  for (const [position, childId] of childIds.entries()) {
+    await db.prepare(
+      "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
+    ).bind(parentId, childId, "related_content", position).run();
+  }
+}
+
 describe("record type web pages", () => {
   test("published blog_article renders 200 with title, content_html body, and tags", async () => {
     const db = createMigratedInMemoryDatabase();
@@ -234,6 +242,80 @@ describe("record type web pages", () => {
       const jsonLd = JSON.parse(scriptMatch[1]);
       expect(jsonLd["@type"]).toBe("BlogPosting");
       expect(jsonLd.headline).toBe("SEO Blog Post");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("blog detail renders the shared Read next strip for related items", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const relatedBlog = await createBlogArticle(service, itemRepo, "Related Blog");
+      const relatedPhoto = await createPhoto(service, itemRepo, "Related Photo");
+      const relatedPodcast = await createPodcastEpisode(service, itemRepo, "Related Podcast");
+
+      const source = await createBlogArticle(service, itemRepo, "Strip Source");
+      await linkRelatedContent(db, source.id, [relatedBlog.id, relatedPhoto.id, relatedPodcast.id]);
+
+      const request = new Request("https://site.test/blog/strip-source");
+      const response = await getBlogArticle({params: {slug: "strip-source"}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Read next");
+      expect(html).toContain("Related Blog");
+      expect(html).toContain("Related Photo");
+      expect(html).toContain("Related Podcast");
+      expect(html).toContain("class=\"item-card\"");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("photo detail renders the shared Read next strip for related items", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const relatedBlog = await createBlogArticle(service, itemRepo, "Photo Related Blog");
+      const relatedPodcast = await createPodcastEpisode(service, itemRepo, "Photo Related Podcast");
+
+      const source = await createPhoto(service, itemRepo, "Photo Strip Source");
+      await linkRelatedContent(db, source.id, [relatedBlog.id, relatedPodcast.id]);
+
+      const request = new Request("https://site.test/photo/photo-strip-source");
+      const response = await getPhoto({params: {slug: "photo-strip-source"}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Read next");
+      expect(html).toContain("Photo Related Blog");
+      expect(html).toContain("Photo Related Podcast");
+      expect(html).toContain("class=\"item-card\"");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("podcast detail renders the shared Read next strip for related items", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const relatedBlog = await createBlogArticle(service, itemRepo, "Podcast Related Blog");
+      const relatedPhoto = await createPhoto(service, itemRepo, "Podcast Related Photo");
+
+      const source = await createPodcastEpisode(service, itemRepo, "Podcast Strip Source");
+      await linkRelatedContent(db, source.id, [relatedBlog.id, relatedPhoto.id]);
+
+      const request = new Request("https://site.test/i/podcast-strip-source");
+      const response = await getPodcastEpisode({params: {slug: "podcast-strip-source"}, env: makeEnv(db), request});
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain("Read next");
+      expect(html).toContain("Podcast Related Blog");
+      expect(html).toContain("Podcast Related Photo");
+      expect(html).toContain("class=\"item-card\"");
     } finally {
       db.close();
     }

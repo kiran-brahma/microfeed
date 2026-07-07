@@ -2,6 +2,7 @@ import React from "react";
 import PublicNav from "./PublicNav";
 import MetaTags from "./seo/MetaTags";
 import JsonLd from "./seo/JsonLd";
+import ItemCard from "./ItemCard";
 
 // Small, self-contained inline stylesheet: system font stack, readable
 // max-width container. No external CSS dependencies (Task 6.3a — fixed,
@@ -300,6 +301,14 @@ const INLINE_STYLES = `
     text-decoration: none;
     font-weight: 600;
   }
+  .record-page__related {
+    margin-top: 2.5rem;
+  }
+  .record-page__related-title {
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
   @media (prefers-color-scheme: dark) {
     body {
       color: #e6e6e6;
@@ -351,7 +360,33 @@ const INLINE_STYLES = `
   }
 `;
 
-export default function RecordPageLayout({title, description, canonicalUrl, channel, navTypes = [], seo, children}) {
+function RelatedContentSection({relatedItems}) {
+  if (!relatedItems || relatedItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="record-page__related" aria-label="Related content">
+      <h2 className="record-page__related-title">Read next</h2>
+      <div className="item-feed">
+        {relatedItems.map((item) => (
+          <ItemCard key={`${item.content_type}-${item.slug}`} item={item} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function RecordPageLayout({
+  title,
+  description,
+  canonicalUrl,
+  channel,
+  navTypes = [],
+  seo,
+  relatedItems = [],
+  children,
+}) {
   // When a PageSeo object is supplied, it is the single source of truth for
   // title/description/canonical so we never double-emit these tags (PRD
   // §4.2) - the ad-hoc props are only used as a fallback for pages that
@@ -389,6 +424,7 @@ export default function RecordPageLayout({title, description, canonicalUrl, chan
         <PublicNav channel={channel || {}} navTypes={navTypes} />
         <main className="record-page">
           {children}
+          <RelatedContentSection relatedItems={relatedItems} />
         </main>
         {seo && <JsonLd seo={seo} />}
       </body>

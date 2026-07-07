@@ -1,4 +1,4 @@
-import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
+import RelationRepo, {GALLERY_MEMBER, RELATED_CONTENT} from "./RelationRepo";
 
 const {createMigratedInMemoryDatabase} = require("../../test-utils/d1-substitute");
 
@@ -119,11 +119,36 @@ describe("RelationRepo", () => {
       await seedItem(db, "photo000001");
       await seedItem(db, "photo000002");
 
-      await repo.setMembers("gallery0001", ["photo000001"], "other_rel");
+      await repo.setMembers("gallery0001", ["photo000001"], RELATED_CONTENT);
       await repo.setMembers("gallery0001", ["photo000002"], GALLERY_MEMBER);
 
-      expect(await repo.getMemberIds("gallery0001", "other_rel")).toEqual(["photo000001"]);
+      expect(await repo.getMemberIds("gallery0001", RELATED_CONTENT)).toEqual(["photo000001"]);
       expect(await repo.getMemberIds("gallery0001", GALLERY_MEMBER)).toEqual(["photo000002"]);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("related-content ids are separate from gallery membership and resolve from either direction", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const repo = new RelationRepo(db);
+
+    try {
+      await seedItem(db, "gallery0001", "gallery");
+      await seedItem(db, "photo000001");
+      await seedItem(db, "blog000001", "blog_article");
+      await seedItem(db, "blog000002", "blog_article");
+
+      await repo.setMembers("gallery0001", ["photo000001"], GALLERY_MEMBER);
+      await repo.setMembers("blog000001", ["photo000001"], RELATED_CONTENT);
+      await repo.setMembers("photo000001", ["blog000002"], RELATED_CONTENT);
+
+      expect(await repo.getMemberIds("gallery0001", GALLERY_MEMBER)).toEqual(["photo000001"]);
+      expect(await repo.getMemberIds("blog000001", RELATED_CONTENT)).toEqual(["photo000001"]);
+      expect((await repo.getRelatedItemIds("photo000001")).sort()).toEqual([
+        "blog000001",
+        "blog000002",
+      ].sort());
     } finally {
       db.close();
     }

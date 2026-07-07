@@ -48,6 +48,7 @@ describe("ContentTypeRegistry", () => {
       "itunes:season",
       "itunes:episode",
       "itunes:explicit",
+      "related_items",
       "seo_title",
       "seo_description",
       "share_image",
@@ -67,6 +68,7 @@ describe("ContentTypeRegistry", () => {
       "author",
       "tags",
       "date_published_ms",
+      "related_items",
       "seo_title",
       "seo_description",
       "share_image",
@@ -80,6 +82,7 @@ describe("ContentTypeRegistry", () => {
       "caption",
       "tags",
       "taken_date",
+      "related_items",
       "seo_title",
       "seo_description",
       "share_image",
@@ -108,6 +111,7 @@ describe("ContentTypeRegistry", () => {
       "layout",
       "show_in_nav",
       "date_published_ms",
+      "related_items",
       "seo_title",
       "seo_description",
       "share_image",
@@ -116,6 +120,17 @@ describe("ContentTypeRegistry", () => {
 
     expect(getFieldDefs("landing_page").find((field) => field.key === "filter_tags")).toMatchObject({
       kind: "string_list",
+    });
+    expect(getFieldDefs("landing_page").find((field) => field.key === "related_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      relationType: "related_content",
     });
 
     // show_in_nav: boolean fieldDef controlling whether a published landing
@@ -134,10 +149,55 @@ describe("ContentTypeRegistry", () => {
     expect(getFieldDefs("photo").some((field) => field.key === "show_in_nav")).toBe(false);
     expect(getFieldDefs("gallery").some((field) => field.key === "show_in_nav")).toBe(false);
 
-    // landing_page's filter fields must not be relational: no tags/reference field kinds.
-    expect(
-      getFieldDefs("landing_page").some((field) => field.kind === "tags" || field.kind === "reference"),
-    ).toBe(false);
+    expect(getFieldDefs("podcast_episode").find((field) => field.key === "related_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      relationType: "related_content",
+    });
+    expect(getFieldDefs("blog_article").find((field) => field.key === "related_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      relationType: "related_content",
+    });
+    expect(getFieldDefs("photo").find((field) => field.key === "related_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      relationType: "related_content",
+    });
+    expect(getFieldDefs("gallery").find((field) => field.key === "members")).toMatchObject({
+      kind: "reference",
+      relationType: "gallery_member",
+      allowedContentTypes: ["photo"],
+    });
+    expect(getFieldDefs("gallery").find((field) => field.key === "related_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: [
+        "podcast_episode",
+        "blog_article",
+        "photo",
+        "gallery",
+        "landing_page",
+      ],
+      relationType: "related_content",
+    });
 
     expect(getType("home_page")).toMatchObject({
       name: "home_page",
@@ -172,6 +232,7 @@ describe("ContentTypeRegistry", () => {
       "share_image",
       "noindex",
     ]);
+    expect(getFieldDefs("home_page").some((field) => field.key === "related_items")).toBe(false);
 
     expect(getFieldDefs("home_page").find((field) => field.key === "featured_items")).toMatchObject({
       kind: "reference",
@@ -225,19 +286,20 @@ describe("ContentTypeRegistry", () => {
     });
 
     test("gallery field keys end with the four SEO fields, existing fields unchanged", () => {
-      expect(getFieldDefs("gallery").map((field) => field.key)).toEqual([
-        "status",
-        "title",
-        "content_html",
-        "image",
-        "members",
-        "tags",
-        "date_published_ms",
-        "seo_title",
-        "seo_description",
-        "share_image",
-        "noindex",
-      ]);
+    expect(getFieldDefs("gallery").map((field) => field.key)).toEqual([
+      "status",
+      "title",
+      "content_html",
+      "image",
+      "members",
+      "tags",
+      "date_published_ms",
+      "related_items",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
+    ]);
     });
 
     test("SEO field defs are independent per type (mutating one type's fieldDefs doesn't leak)", () => {
