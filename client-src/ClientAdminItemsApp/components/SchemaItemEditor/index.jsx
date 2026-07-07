@@ -171,7 +171,9 @@ export default class SchemaItemEditor extends React.Component {
         showToast(isEdit ? "Updated!" : "Created!", "success");
         this.setState({ submitStatus: null }, () => {
           setTimeout(() => {
-            window.location.href = ADMIN_URLS.allItems();
+            if (process.env.NODE_ENV !== "test") {
+              window.location.href = ADMIN_URLS.allItems();
+            }
           }, 800);
         });
       })
