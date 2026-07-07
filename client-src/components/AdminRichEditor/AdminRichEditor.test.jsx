@@ -34,6 +34,19 @@ describe("AdminRichEditor", () => {
     expect(bold.className).not.toContain("lh-btn-white");
   });
 
+  it("hides HTML source mode when the field does not allow it", () => {
+    render(
+      <AdminRichEditor
+        value="<p>Hello world</p>"
+        allowHtmlSourceMode={false}
+        onChange={() => {}}
+        extra={{ publicBucketUrl: "https://cdn.example.com", folderName: "items/1" }}
+      />
+    );
+
+    expect(screen.queryByRole("radio", { name: /html source/i })).not.toBeInTheDocument();
+  });
+
   it("fires onChange with updated HTML when a toolbar action (bold) is clicked", async () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
@@ -41,6 +54,7 @@ describe("AdminRichEditor", () => {
     render(
       <AdminRichEditor
         value="<p>Hello world</p>"
+        allowHtmlSourceMode={true}
         onChange={onChange}
         extra={{ publicBucketUrl: "https://cdn.example.com", folderName: "items/1" }}
       />
@@ -69,6 +83,7 @@ describe("AdminRichEditor", () => {
     render(
       <AdminRichEditor
         value="<p>Hello world</p>"
+        allowHtmlSourceMode={true}
         onChange={onChange}
         extra={{ publicBucketUrl: "https://cdn.example.com", folderName: "items/1" }}
       />

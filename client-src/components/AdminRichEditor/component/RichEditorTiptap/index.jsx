@@ -1,9 +1,19 @@
 import React from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Bold from "@tiptap/extension-bold";
+import Italic from "@tiptap/extension-italic";
+import Strike from "@tiptap/extension-strike";
+import Underline from "@tiptap/extension-underline";
+import Heading from "@tiptap/extension-heading";
+import Blockquote from "@tiptap/extension-blockquote";
+import CodeBlock from "@tiptap/extension-code-block";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
+import { BulletList, ListItem, OrderedList, TaskItem, TaskList } from "@tiptap/extension-list";
 import RichEditorMediaDialog from "../RichEditorMediaDialog";
+import { HighlightExtension, TextAlignExtension } from "./tiptapExtensions";
 
 function ToolbarButton({ label, isActive, onClick, children }) {
   return (
@@ -26,9 +36,37 @@ export default function RichEditorTiptap({ value, onChange, extra }) {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: false }),
+      StarterKit.configure({
+        link: false,
+        heading: false,
+        bold: false,
+        italic: false,
+        strike: false,
+        underline: false,
+        blockquote: false,
+        codeBlock: false,
+        horizontalRule: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+      }),
+      Bold,
+      Italic,
+      Strike,
+      Underline,
+      Heading.configure({ levels: [1, 2, 3, 4, 5, 6] }),
+      Blockquote,
+      CodeBlock,
+      HorizontalRule,
+      ListItem,
+      BulletList,
+      OrderedList,
+      TaskItem,
+      TaskList,
       ImageExtension,
       LinkExtension.configure({ openOnClick: false }),
+      HighlightExtension,
+      TextAlignExtension.configure({ types: ["heading", "paragraph"] }),
     ],
     content: value || "",
     onUpdate: ({ editor: updatedEditor }) => {
@@ -74,6 +112,14 @@ export default function RichEditorTiptap({ value, onChange, extra }) {
     return null;
   }
 
+  const headingButtons = [1, 2, 3, 4, 5, 6];
+  const alignments = [
+    { label: "Align left", value: "left" },
+    { label: "Align center", value: "center" },
+    { label: "Align right", value: "right" },
+    { label: "Justify", value: "justify" },
+  ];
+
   return (
     <div>
       <div className="lh-rich-editor-toolbar flex flex-wrap items-center p-1 border rounded-tl rounded-tr">
@@ -91,26 +137,108 @@ export default function RichEditorTiptap({ value, onChange, extra }) {
         >
           <em>I</em>
         </ToolbarButton>
+        {headingButtons.map((level) => (
+          <ToolbarButton
+            key={level}
+            label={`H${level}`}
+            isActive={editor.isActive("heading", { level })}
+            onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
+          >
+            H{level}
+          </ToolbarButton>
+        ))}
         <ToolbarButton
-          label="Heading"
-          isActive={editor.isActive("heading", { level: 2 })}
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          label="Underline"
+          isActive={editor.isActive("underline")}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
         >
-          H2
+          <span className="underline">U</span>
         </ToolbarButton>
         <ToolbarButton
-          label="Bullet List"
+          label="Strike"
+          isActive={editor.isActive("strike")}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+        >
+          <span className="line-through">S</span>
+        </ToolbarButton>
+        <ToolbarButton
+          label="Blockquote"
+          isActive={editor.isActive("blockquote")}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        >
+          &ldquo;&rdquo;
+        </ToolbarButton>
+        <ToolbarButton
+          label="Code block"
+          isActive={editor.isActive("codeBlock")}
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        >
+          {"</>"}
+        </ToolbarButton>
+        <ToolbarButton
+          label="Bullet list"
           isActive={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
           List
         </ToolbarButton>
         <ToolbarButton
-          label="Ordered List"
+          label="Ordered list"
           isActive={editor.isActive("orderedList")}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
         >
           1. List
+        </ToolbarButton>
+        <ToolbarButton
+          label="Task list"
+          isActive={editor.isActive("taskList")}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+        >
+          Task
+        </ToolbarButton>
+        <ToolbarButton
+          label="Horizontal rule"
+          isActive={false}
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        >
+          HR
+        </ToolbarButton>
+        <ToolbarButton
+          label="Highlight"
+          isActive={editor.isActive("highlight")}
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+        >
+          Mark
+        </ToolbarButton>
+        {alignments.map((alignment) => (
+          <ToolbarButton
+            key={alignment.value}
+            label={alignment.label}
+            isActive={editor.isActive({ textAlign: alignment.value })}
+            onClick={() => {
+              if (alignment.value === "left") {
+                editor.chain().focus().unsetTextAlign().run();
+                return;
+              }
+              editor.chain().focus().setTextAlign(alignment.value).run();
+            }}
+          >
+            {alignment.label}
+          </ToolbarButton>
+        ))}
+        <ToolbarButton
+          label="Undo"
+          isActive={false}
+          onClick={() => editor.chain().focus().undo().run()}
+        >
+          Undo
+        </ToolbarButton>
+        <ToolbarButton
+          label="Redo"
+          isActive={false}
+          onClick={() => editor.chain().focus().redo().run()}
+        >
+          Redo
         </ToolbarButton>
         <ToolbarButton
           label="Link"
