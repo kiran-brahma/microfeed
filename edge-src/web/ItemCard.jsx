@@ -39,7 +39,11 @@ export default function ItemCard({item}) {
   return (
     <article className="item-card">
       <a className="item-card__link" href={href}>
-        {item.image && <img className="item-card__image" src={item.image} alt={title || ""} />}
+        {item.image && (
+          <div className="item-card__image-frame">
+            <img className="item-card__image" src={item.image} alt={title || ""} />
+          </div>
+        )}
         <span className="item-card__badge">{badgeLabel}</span>
         <h3 className="item-card__title">{title}</h3>
         {excerpt && <p className="item-card__excerpt">{excerpt}</p>}

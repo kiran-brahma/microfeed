@@ -35,17 +35,31 @@ const INLINE_STYLES = `
   .public-nav__brand {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
     color: inherit;
     text-decoration: none;
     font-weight: 600;
     font-size: 1.05rem;
     margin-right: auto;
   }
+  .public-nav__logo-box {
+    width: 50px;
+    height: 50px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #f8f8f8;
+  }
   .public-nav__logo {
-    height: 32px;
+    max-width: 100%;
+    max-height: 100%;
     width: auto;
+    height: auto;
+    object-fit: contain;
     display: block;
-    border-radius: 4px;
   }
   .public-nav__brand-text {
     color: inherit;
@@ -166,9 +180,15 @@ const INLINE_STYLES = `
     text-decoration: none;
     padding-bottom: 1rem;
   }
+  .item-card__image-frame {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #f8f8f8;
+  }
   .item-card__image {
     width: 100%;
-    height: 160px;
+    height: 100%;
     object-fit: cover;
     display: block;
   }

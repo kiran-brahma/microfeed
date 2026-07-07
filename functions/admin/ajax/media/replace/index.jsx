@@ -18,13 +18,13 @@ function jsonResponse(body, status) {
  */
 export async function onRequestPost({request, env}) {
   const body = await request.json() || {};
-  const {id, hash, size, contentType} = body;
+  const {id, hash, size, contentType, width, height} = body;
   if (!id) {
     return jsonResponse({error: 'id is required'}, 400);
   }
 
   const mediaService = createMediaService(env, env.FEED_DB, createMediaStore(env));
-  const result = await mediaService.replaceObject(id, {hash, size, contentType});
+  const result = await mediaService.replaceObject(id, {hash, size, contentType, width, height});
   if (result && result.error) {
     return jsonResponse(result, 404);
   }

@@ -22,6 +22,8 @@ describe("ItemCard", () => {
     expect(screen.getByText("Blog")).toBeInTheDocument();
     const image = screen.getByRole("img");
     expect(image).toHaveAttribute("src", "https://cdn.example.com/hello.png");
+    expect(image).toHaveClass("item-card__image");
+    expect(image.parentElement).toHaveClass("item-card__image-frame");
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "/blog/hello-world");
   });

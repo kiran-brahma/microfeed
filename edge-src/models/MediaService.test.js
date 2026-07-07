@@ -345,6 +345,27 @@ describe("MediaService", () => {
         db.close();
       }
     });
+
+    test("stores final width and height metadata on registerUpload", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaRepo} = makeService(db);
+      try {
+        const created = await service.registerUpload({
+          hash: "meta-hash",
+          key: "proj/prod/images/hero.avif",
+          url: "proj/prod/images/hero.avif",
+          originalFilename: "hero.avif",
+          contentType: "image/avif",
+          width: 1024,
+          height: 1024,
+        });
+        const row = await mediaRepo.getById(created.id);
+        expect(row.width).toBe(1024);
+        expect(row.height).toBe(1024);
+      } finally {
+        db.close();
+      }
+    });
   });
 
   describe("replaceObject", () => {
@@ -365,6 +386,8 @@ describe("MediaService", () => {
           hash: "new-hash",
           size: 555,
           contentType: "image/jpeg",
+          width: 800,
+          height: 800,
         });
         expect(result.replaced).toBe(true);
         expect(result.url).toBe("proj/prod/images/photo.png");
@@ -377,6 +400,8 @@ describe("MediaService", () => {
         expect(row.content_hash).toBe("new-hash");
         expect(row.size).toBe(555);
         expect(row.content_type).toBe("image/jpeg");
+        expect(row.width).toBe(800);
+        expect(row.height).toBe(800);
       } finally {
         db.close();
       }
