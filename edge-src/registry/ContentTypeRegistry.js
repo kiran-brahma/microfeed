@@ -18,6 +18,7 @@ function makeFieldDef(key, kind, extra = {}) {
 }
 
 const STATUS_ENUM_EXTRA = {
+  label: "Status",
   options: STATUS_OPTIONS,
   valueMap: {
     published: 1,
@@ -50,7 +51,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("content_html", "richtext", {target: "description"}),
       makeFieldDef("image", "image"),
       makeFieldDef("attachment", "media", {target: "mediaFile"}),
-      makeFieldDef("date_published_ms", "date", {target: "pubDateMs"}),
+      makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
       makeFieldDef("guid", "text"),
       makeFieldDef("itunes:title", "text", {
         source: ["_microfeed", "itunes:title"],
@@ -96,7 +97,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("excerpt", "text"),
       makeFieldDef("author", "text"),
       makeFieldDef("tags", "tags"),
-      makeFieldDef("date_published_ms", "date", {target: "pubDateMs"}),
+      makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
       ...seoFieldDefs(),
     ],
   },
@@ -109,7 +110,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("image", "image", {required: true}),
       makeFieldDef("caption", "text"),
       makeFieldDef("tags", "tags"),
-      makeFieldDef("taken_date", "date", {target: "pubDateMs"}),
+      makeFieldDef("taken_date", "date", {target: "pubDateMs", label: "Date taken (publish date)"}),
       ...seoFieldDefs(),
     ],
   },
@@ -123,6 +124,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("image", "image"),
       makeFieldDef("members", "reference", {required: true, target: "members"}),
       makeFieldDef("tags", "tags"),
+      makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
       ...seoFieldDefs(),
     ],
   },
@@ -146,7 +148,12 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("layout", "enum", {
         options: LAYOUT_OPTIONS,
       }),
-      makeFieldDef("show_in_nav", "boolean", {target: "showInNav", source: "showInNav"}),
+      makeFieldDef("show_in_nav", "boolean", {
+        target: "showInNav",
+        source: "showInNav",
+        label: "Show in site navigation",
+      }),
+      makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
       ...seoFieldDefs(),
     ],
   },
