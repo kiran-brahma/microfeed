@@ -1,10 +1,14 @@
 import {STATUSES} from "../../common-src/Constants";
 import ItemRepo from "./ItemRepo";
-import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
+import RelationRepo, {GALLERY_MEMBER, RELATED_CONTENT} from "./RelationRepo";
 import {listTypes} from "../registry/ContentTypeRegistry";
 
 function recordTypeNames() {
   return listTypes().filter((type) => type.family === "record").map((type) => type.name);
+}
+
+function nonHomeTypeNames() {
+  return listTypes().map((type) => type.name).filter((typeName) => typeName !== "home_page");
 }
 
 export default class AggregationResolver {
@@ -74,6 +78,24 @@ export default class AggregationResolver {
     return response.results;
   }
 
+  async _resolveRelatedContent(itemRow, statuses) {
+    const relatedIds = await this.relationRepo.getRelatedItemIds(itemRow.id, RELATED_CONTENT);
+    if (relatedIds.length === 0) {
+      return [];
+    }
+
+    const response = await this.itemRepo.list({
+      queryKwargs: {
+        id__in: relatedIds,
+        status__in: statuses,
+        content_type__in: nonHomeTypeNames(),
+      },
+      orderBy: ["updated_at desc", "id"],
+      limit: 3,
+    });
+    return response.results;
+  }
+
   async resolve(itemRow, {statuses = [STATUSES.PUBLISHED]} = {}) {
     const data = itemRow.data ? JSON.parse(itemRow.data) : {};
 
@@ -86,6 +108,10 @@ export default class AggregationResolver {
     }
 
     return [];
+  }
+
+  async resolveRelated(itemRow, {statuses = [STATUSES.PUBLISHED]} = {}) {
+    return this._resolveRelatedContent(itemRow, statuses);
   }
 
   /**

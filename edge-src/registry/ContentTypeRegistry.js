@@ -1,6 +1,13 @@
 const STATUS_OPTIONS = ["published", "unlisted", "unpublished"];
 const PODCAST_EPISODE_TYPE_OPTIONS = ["full", "trailer", "bonus"];
 const CONTENT_TYPE_OPTIONS = ["podcast_episode", "blog_article", "photo"];
+const RELATED_CONTENT_TYPE_OPTIONS = [
+  "podcast_episode",
+  "blog_article",
+  "photo",
+  "gallery",
+  "landing_page",
+];
 const SORT_OPTIONS = ["newest_first", "oldest_first"];
 const LAYOUT_OPTIONS = ["list", "grid"];
 
@@ -37,6 +44,15 @@ function seoFieldDefs() {
     makeFieldDef("share_image", "image", {target: "shareImage", source: "shareImage"}),
     makeFieldDef("noindex", "boolean", {target: "noindex", source: "noindex"}),
   ];
+}
+
+function relatedContentFieldDef() {
+  return makeFieldDef("related_items", "reference", {
+    label: "Related items",
+    allowedContentTypes: RELATED_CONTENT_TYPE_OPTIONS,
+    relationType: "related_content",
+    onlyPublished: true,
+  });
 }
 
 const TYPE_DEFINITIONS = [
@@ -82,6 +98,7 @@ const TYPE_DEFINITIONS = [
         source: ["_microfeed", "itunes:explicit"],
         target: "itunes:explicit",
       }),
+      relatedContentFieldDef(),
       ...seoFieldDefs(),
     ],
   },
@@ -98,6 +115,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("author", "text"),
       makeFieldDef("tags", "tags"),
       makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
+      relatedContentFieldDef(),
       ...seoFieldDefs(),
     ],
   },
@@ -111,6 +129,7 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("caption", "text"),
       makeFieldDef("tags", "tags"),
       makeFieldDef("taken_date", "date", {target: "pubDateMs", label: "Date taken (publish date)"}),
+      relatedContentFieldDef(),
       ...seoFieldDefs(),
     ],
   },
@@ -126,9 +145,11 @@ const TYPE_DEFINITIONS = [
         required: true,
         target: "members",
         allowedContentTypes: ["photo"],
+        relationType: "gallery_member",
       }),
       makeFieldDef("tags", "tags"),
       makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
+      relatedContentFieldDef(),
       ...seoFieldDefs(),
     ],
   },
@@ -158,6 +179,7 @@ const TYPE_DEFINITIONS = [
         label: "Show in site navigation",
       }),
       makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
+      relatedContentFieldDef(),
       ...seoFieldDefs(),
     ],
   },

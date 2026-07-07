@@ -33,12 +33,16 @@ export async function resolveRecordPage(env, request, contentType, slug) {
   const item = serializeItemForFeed(row, {publicBucketUrl});
   const navTypes = await getPublicNavLinks(itemRepo);
   const channel = serializeChannelForWeb(content.channel, publicBucketUrl);
+  const relatedRows = await feedDb.aggregationResolver.resolveRelated(row, {
+    statuses: [STATUSES.PUBLISHED],
+  });
+  const relatedItems = relatedRows.map((relatedRow) => serializeItemForFeed(relatedRow, {publicBucketUrl}));
 
   const urlObject = new URL(request.url);
   const canonicalUrl = `${urlObject.origin}${itemPublicUrl(contentType, slug)}/`;
   const seo = recordSeo({item, contentType, channel, seoSettings, publicBucketUrl, canonicalUrl});
 
-  return {row, item, content, publicBucketUrl, channel, navTypes, seo};
+  return {row, item, relatedItems, content, publicBucketUrl, channel, navTypes, seo};
 }
 
 export default resolveRecordPage;

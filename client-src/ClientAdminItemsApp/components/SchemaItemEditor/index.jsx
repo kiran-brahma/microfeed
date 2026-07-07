@@ -30,6 +30,7 @@ const METADATA_FIELD_KEYS = new Set([
   "layout",
   "show_in_nav",
   "members",
+  "related_items",
   "guid",
   "url",
   "itunes:title",

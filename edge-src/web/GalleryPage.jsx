@@ -3,12 +3,20 @@ import RecordPageLayout from "./RecordPageLayout";
 import {htmlMetaDescription} from "../../common-src/StringUtils";
 import {itemPublicUrl} from "./itemPublicUrl";
 
-export default function GalleryPage({item, members, canonicalUrl, channel, navTypes, seo}) {
+export default function GalleryPage({item, members, canonicalUrl, channel, navTypes, seo, relatedItems = []}) {
   const description = htmlMetaDescription(item.content_html || "", true);
   const photos = members || [];
 
   return (
-    <RecordPageLayout title={item.title} description={description} canonicalUrl={canonicalUrl} channel={channel} navTypes={navTypes} seo={seo}>
+    <RecordPageLayout
+      title={item.title}
+      description={description}
+      canonicalUrl={canonicalUrl}
+      channel={channel}
+      navTypes={navTypes}
+      seo={seo}
+      relatedItems={relatedItems}
+    >
       <h1 className="record-page__title">{item.title}</h1>
       {item.content_html && (
         <div className="record-page__body" dangerouslySetInnerHTML={{__html: item.content_html}} />

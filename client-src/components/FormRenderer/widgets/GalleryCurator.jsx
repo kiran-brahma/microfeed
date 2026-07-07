@@ -57,7 +57,18 @@ export default function GalleryCurator({ fieldDef, value, onChange, error }) {
     return lookup;
   }, {});
 
-  const availableItems = items.filter((item) => !memberIds.includes(item.id));
+  const availableItems = items.filter((item) => {
+    if (memberIds.includes(item.id)) {
+      return false;
+    }
+    if (!allowedContentTypes.includes(item.content_type)) {
+      return false;
+    }
+    if (fieldDef?.onlyPublished && item.status !== "published") {
+      return false;
+    }
+    return true;
+  });
   const addLabel = allowedContentTypes.length === 1 ? allowedContentTypes[0].replace(/_/g, " ") : "item";
 
   function moveUp(index) {

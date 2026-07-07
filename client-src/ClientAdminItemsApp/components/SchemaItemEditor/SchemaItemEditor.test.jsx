@@ -130,6 +130,45 @@ describe("SchemaItemEditor", () => {
     expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
   });
 
+  test("non-home content types render related items in the metadata rail and preload selected ids", async () => {
+    Requests.axiosGet.mockImplementation((url) => {
+      if (url === "/admin/ajax/tags") {
+        return Promise.resolve({ data: { tags: [] } });
+      }
+      if (url.startsWith("/admin/ajax/items?content_type__in=")) {
+        return Promise.resolve({
+          data: {
+            items: [
+              { id: "related-1", content_type: "blog_article", title: "Related Post", status: "published" },
+              { id: "hidden-1", content_type: "photo", title: "Hidden Photo", status: "unpublished" },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await renderEditor(
+      <SchemaItemEditor
+        contentType="blog_article"
+        item={{
+          id: "item-1",
+          content_type: "blog_article",
+          title: "Post With Relations",
+          content_html: "<p>Body</p>",
+          related_items: ["related-1"],
+        }}
+        publicBucketUrl="https://cdn.example.com"
+      />
+    );
+
+    const metadataRail = screen.getByRole("complementary", { name: /metadata rail/i });
+    expect(within(metadataRail).getByText("Related items")).toBeInTheDocument();
+    await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type__in=podcast_episode,blog_article,photo,gallery,landing_page"));
+    expect(await screen.findByText("Related Post")).toBeInTheDocument();
+    expect(screen.queryByText("photo: Hidden Photo")).not.toBeInTheDocument();
+  });
+
   test("home_page hides the slug editor and submits without slug", async () => {
     const user = userEvent.setup();
     Requests.axiosPut.mockResolvedValue({ status: 200, data: { id: "home-1" } });

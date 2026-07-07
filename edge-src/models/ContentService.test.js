@@ -1,7 +1,7 @@
 import ContentService from "./ContentService";
 import ItemRepo from "./ItemRepo";
 import TagLinkRepo from "./TagLinkRepo";
-import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
+import RelationRepo, {GALLERY_MEMBER, RELATED_CONTENT} from "./RelationRepo";
 import TagService from "./TagService";
 import {STATUSES} from "../../common-src/Constants";
 
@@ -1035,6 +1035,103 @@ describe("ContentService", () => {
         expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([photo1]);
         const galleryRow = await itemRepo.getById(galleryId);
         expect(JSON.parse(galleryRow.data)).not.toHaveProperty("members");
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("related-content relations", () => {
+    async function createRelatedItem(service, itemRepo, typeName, title, extra = {}) {
+      await service.create(typeName, {
+        status: "published",
+        title,
+        ...extra,
+      });
+      return itemRepo.getByTypeAndSlug(typeName, title.toLowerCase().replace(/\s+/g, "-"));
+    }
+
+    test("create and update keep gallery membership separate from related-content relations", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, relationRepo, service} = makeService(db);
+
+      try {
+        const photoOne = await createPhoto(service, itemRepo, "Photo One");
+        const photoTwo = await createPhoto(service, itemRepo, "Photo Two");
+        const relatedBlogOne = await createRelatedItem(service, itemRepo, "blog_article", "Related Blog One", {
+          content_html: "<p>Related one</p>",
+        });
+        const relatedBlogTwo = await createRelatedItem(service, itemRepo, "blog_article", "Related Blog Two", {
+          content_html: "<p>Related two</p>",
+        });
+
+        const galleryId = await service.create("gallery", {
+          status: "published",
+          title: "Related Gallery",
+          members: [photoOne, photoTwo],
+          related_items: [relatedBlogOne.id, relatedBlogTwo.id],
+        });
+
+        const galleryRow = await itemRepo.getById(galleryId);
+        expect(JSON.parse(galleryRow.data)).not.toHaveProperty("members");
+        expect(JSON.parse(galleryRow.data)).not.toHaveProperty("related_items");
+        expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([
+          photoOne,
+          photoTwo,
+        ]);
+        expect((await relationRepo.getRelatedItemIds(galleryId)).sort()).toEqual([
+          relatedBlogOne.id,
+          relatedBlogTwo.id,
+        ].sort());
+
+        const relatedBlogThree = await createRelatedItem(service, itemRepo, "blog_article", "Related Blog Three", {
+          content_html: "<p>Related three</p>",
+        });
+        const updateResult = await service.update(galleryId, {
+          related_items: [relatedBlogThree.id],
+        });
+
+        expect(updateResult).not.toHaveProperty("errors");
+        expect(await relationRepo.getMemberIds(galleryId, GALLERY_MEMBER)).toEqual([
+          photoOne,
+          photoTwo,
+        ]);
+        expect(await relationRepo.getMemberIds(galleryId, RELATED_CONTENT)).toEqual([
+          relatedBlogThree.id,
+        ]);
+      } finally {
+        db.close();
+      }
+    });
+
+    test("create rejects unpublished or home_page related items and writes nothing", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {itemRepo, service} = makeService(db);
+
+      try {
+        const homeId = await service.create("home_page", {
+          status: "published",
+          title: "Home",
+        });
+        const unpublishedBlog = await service.create("blog_article", {
+          status: "unpublished",
+          title: "Hidden Blog",
+          content_html: "<p>Hidden</p>",
+        });
+
+        const result = await service.create("blog_article", {
+          status: "published",
+          title: "Related Host",
+          content_html: "<p>Body</p>",
+          related_items: [homeId, unpublishedBlog],
+        });
+
+        expect(result).toEqual({
+          errors: expect.arrayContaining([
+            expect.objectContaining({field: "related_items"}),
+          ]),
+        });
+        expect((await itemRepo.list()).results).toHaveLength(2);
       } finally {
         db.close();
       }
