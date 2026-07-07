@@ -9,6 +9,7 @@ import {randomHex, urlJoinWithRelative} from "../../../../../common-src/StringUt
 import Requests from "../../../../common/requests";
 import MediaLibrary from "../../../MediaLibrary";
 import {showToast} from "../../../../common/ToastUtils";
+import {classifyImageFieldFile} from "../../../../common/imageFieldUploadPipeline";
 
 const UPLOAD_STATUS__START = 1;
 
@@ -79,18 +80,20 @@ export default class RichEditorMediaDialog extends React.Component {
   onFileUpload(file) {
     const {mediaType, setIsOpen} = this.props;
     this.setState({uploadStatus: UPLOAD_STATUS__START});
-    const {name} = file;
-    const extension = name.slice((name.lastIndexOf('.') - 1 >>> 0) + 2);
-    let newFilename = `${mediaType}-${randomHex(32)}`;
-    if (extension && extension.length > 0) {
-      newFilename += `.${extension}`;
-    }
     const extra = this.props.extra || {};
     const publicBucketUrl = extra.publicBucketUrl || '';
-    const folderName = extra.folderName || 'unknown';
-    const cdnFilename = `media/rich-editor/${folderName}/${newFilename}`;
+    const isImage = mediaType === 'image';
+    const classification = isImage ? classifyImageFieldFile(file) : null;
+    const fallbackExtension = file.name.slice((file.name.lastIndexOf('.') - 1 >>> 0) + 2);
+    const outputExtension = classification ? classification.outputExtension : fallbackExtension;
+    const outputContentType = classification ? classification.outputContentType : file.type;
+    const newFilename = `${mediaType}-${randomHex(32)}.${outputExtension}`;
+    const cdnFilename = isImage ? `images/${newFilename}` : `media/rich-editor/${extra.folderName || 'unknown'}/${newFilename}`;
+    const uploadFile = classification && classification.kind === 'raster'
+      ? new File([file], newFilename, {type: outputContentType})
+      : file;
 
-    Requests.upload(file, cdnFilename, (percentage) => {
+    Requests.upload(uploadFile, cdnFilename, (percentage) => {
       this.setState({progressText: `${parseFloat(percentage * 100.0).toFixed(2)}%`});
     }, (cdnUrl) => {
         // updateState(cdnUrl, 0);

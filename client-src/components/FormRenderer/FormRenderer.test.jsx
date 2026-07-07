@@ -83,6 +83,30 @@ describe("FormRenderer", () => {
     expect(screen.getByText("Title is required")).toBeInTheDocument();
   });
 
+  test("blog_article rich text fields keep HTML source mode available", () => {
+    const fieldDefs = getFieldDefs("blog_article");
+    render(
+      <Wrapper
+        fieldDefs={fieldDefs}
+        initialValue={{ content_html: "<p>Hello</p>" }}
+      />
+    );
+
+    expect(screen.getByRole("radio", { name: /html source/i })).toBeInTheDocument();
+  });
+
+  test("gallery rich text fields hide HTML source mode", () => {
+    const fieldDefs = getFieldDefs("gallery");
+    render(
+      <Wrapper
+        fieldDefs={fieldDefs}
+        initialValue={{ content_html: "<p>Hello</p>" }}
+      />
+    );
+
+    expect(screen.queryByRole("radio", { name: /html source/i })).not.toBeInTheDocument();
+  });
+
   test("renders an enum field as a select with the right options and updates the payload on change", async () => {
     const user = userEvent.setup();
     const fieldDefs = getFieldDefs("podcast_episode");

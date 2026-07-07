@@ -14,14 +14,14 @@ export default class AdminRichEditor extends React.Component {
   }
   render() {
     const {mode} = this.state;
-    const {label, value, onChange, extra, labelComponent} = this.props;
+    const {label, value, onChange, extra, labelComponent, allowHtmlSourceMode = false} = this.props;
     return (
       <div>
         {label && <div className="lh-page-subtitle">
           {label}
         </div>}
         {labelComponent}
-        <div className="mb-4 max-h-20">
+        {allowHtmlSourceMode && <div className="mb-4 max-h-20">
           <AdminRadio
             customClass="text-sm text-helper-color"
             groupName="richOrHtml"
@@ -31,7 +31,7 @@ export default class AdminRichEditor extends React.Component {
             ]}
             onChange={(e) => this.setState({mode: e.target.value})}
           />
-        </div>
+        </div>}
         {mode === 'rich' ? <RichEditorTiptap
           value={value}
           onChange={onChange}

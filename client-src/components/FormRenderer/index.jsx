@@ -78,6 +78,7 @@ function RichTextWidget({ fieldDef, value, onChange, error }) {
         labelComponent={<RequiredLabel fieldDef={fieldDef} />}
         value={value || ""}
         onChange={(html) => onChange(html)}
+        allowHtmlSourceMode={!!fieldDef.allowHtmlSourceMode}
       />
       <FieldError error={error} />
     </div>

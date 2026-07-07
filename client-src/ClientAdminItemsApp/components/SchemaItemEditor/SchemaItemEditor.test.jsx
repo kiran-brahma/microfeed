@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SchemaItemEditor from "./index";
 import Requests from "../../../common/requests";
@@ -121,5 +121,17 @@ describe("SchemaItemEditor", () => {
     render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
     expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
+  });
+
+  test("keeps primary save actions in a sticky editor header and metadata in the right rail", () => {
+    render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+
+    const header = screen.getByRole("banner", { name: /editor header/i });
+    const metadataRail = screen.getByRole("complementary", { name: /metadata rail/i });
+
+    expect(within(header).getByRole("button", { name: /create/i })).toBeInTheDocument();
+    expect(within(metadataRail).getByRole("textbox", { name: /url slug/i })).toBeInTheDocument();
+    expect(within(metadataRail).getByRole("combobox", { name: /status/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /collapse metadata/i })).toBeInTheDocument();
   });
 });
