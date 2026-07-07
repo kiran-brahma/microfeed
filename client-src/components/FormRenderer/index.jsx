@@ -5,6 +5,7 @@ import AdminSwitch from "../AdminSwitch";
 import AdminDatetimePicker from "../AdminDatetimePicker";
 import AdminRichEditor from "../AdminRichEditor";
 import { datetimeLocalStringToMs } from "../../../common-src/TimeUtils";
+import { getByPath, setByPath } from "../../common/objectPath";
 
 function fieldLabel(fieldDef) {
   return fieldDef.label || fieldDef.key;
@@ -199,7 +200,12 @@ export default function FormRenderer({ fieldDefs, value, onChange, errors = [], 
       {(fieldDefs || []).map((fieldDef) => {
         const Widget = widgetMap[fieldDef.key] || widgetMap[fieldDef.kind] || FallbackWidget;
         const fieldError = (errors || []).find((err) => err.field === fieldDef.key);
-        const fieldValue = value ? value[fieldDef.key] : undefined;
+        // Read/write by feedMapping.source (the API/public-item key), not the
+        // display key, so fields whose source differs from their key
+        // (show_in_nav -> showInNav, seo_* -> seoTitle, itunes:* -> nested)
+        // actually persist and reload.
+        const source = fieldDef.feedMapping.source;
+        const fieldValue = getByPath(value, source);
 
         return (
           <div key={fieldDef.key}>
@@ -207,7 +213,7 @@ export default function FormRenderer({ fieldDefs, value, onChange, errors = [], 
               fieldDef={fieldDef}
               value={fieldValue}
               onChange={(nextFieldValue) => {
-                onChange({ ...value, [fieldDef.key]: nextFieldValue });
+                onChange(setByPath(value || {}, source, nextFieldValue));
               }}
               error={fieldError}
             />

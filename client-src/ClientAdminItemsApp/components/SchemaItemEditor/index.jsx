@@ -8,6 +8,7 @@ import { getFieldDefs } from "../../../../edge-src/registry/ContentTypeRegistry"
 import Requests from "../../../common/requests";
 import { showToast } from "../../../common/ToastUtils";
 import { ADMIN_URLS, toSlug } from "../../../../common-src/StringUtils";
+import { getByPath, setByPath } from "../../../common/objectPath";
 
 const SUBMIT_STATUS__START = 1;
 
@@ -16,10 +17,13 @@ function seedPayload(contentType, item) {
     return {};
   }
   const fieldDefs = getFieldDefs(contentType);
-  const payload = {};
+  // Seed by feedMapping.source so the form's value shape matches what
+  // FormRenderer reads and the API expects (see objectPath / itemMapper).
+  let payload = {};
   fieldDefs.forEach((fieldDef) => {
-    if (Object.prototype.hasOwnProperty.call(item, fieldDef.key)) {
-      payload[fieldDef.key] = item[fieldDef.key];
+    const value = getByPath(item, fieldDef.feedMapping.source);
+    if (value !== undefined) {
+      payload = setByPath(payload, fieldDef.feedMapping.source, value);
     }
   });
   return payload;

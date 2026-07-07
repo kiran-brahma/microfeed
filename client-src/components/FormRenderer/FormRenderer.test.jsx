@@ -88,10 +88,12 @@ describe("FormRenderer", () => {
     const fieldDefs = getFieldDefs("podcast_episode");
     const handleChange = jest.fn();
 
+    // itunes:episodeType's feedMapping.source is nested under _microfeed, so
+    // the form value uses that shape (matching the API / public-item shape).
     render(
       <FormRenderer
         fieldDefs={fieldDefs}
-        value={{ title: "Ep 1", "itunes:episodeType": "full" }}
+        value={{ title: "Ep 1", _microfeed: { "itunes:episodeType": "full" } }}
         onChange={handleChange}
         errors={[]}
       />
@@ -106,8 +108,35 @@ describe("FormRenderer", () => {
 
     expect(handleChange).toHaveBeenCalled();
     const lastCallArg = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
-    expect(lastCallArg["itunes:episodeType"]).toBe("trailer");
+    expect(lastCallArg._microfeed["itunes:episodeType"]).toBe("trailer");
     expect(lastCallArg.title).toBe("Ep 1");
+  });
+
+  test("a boolean field whose source differs from its key (show_in_nav -> showInNav) reads and writes the source key", async () => {
+    const user = userEvent.setup();
+    const fieldDefs = getFieldDefs("landing_page");
+    const handleChange = jest.fn();
+
+    // Value uses the source key (showInNav) — what the API/public item uses.
+    render(
+      <FormRenderer
+        fieldDefs={fieldDefs}
+        value={{ title: "LP", showInNav: true }}
+        onChange={handleChange}
+        errors={[]}
+      />
+    );
+
+    // The switch reflects the source-keyed value (on).
+    const toggle = screen.getByRole("switch", {name: /show in site navigation/i});
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+    const lastCallArg = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
+    // onChange writes back to showInNav (source), not show_in_nav (key).
+    expect(lastCallArg.showInNav).toBe(false);
+    expect(lastCallArg).not.toHaveProperty("show_in_nav");
+    expect(lastCallArg.title).toBe("LP");
   });
 
   test("widgets prop override seam: passing widgets={{tags: MyTagWidget}} renders MyTagWidget instead of the fallback", () => {
