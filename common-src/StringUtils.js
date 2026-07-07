@@ -251,6 +251,7 @@ export const ADMIN_URLS = {
   ajaxMediaCheckHash: () => `${ADMIN_HOME}/ajax/media/check-hash`,
   ajaxMediaRegister: () => `${ADMIN_HOME}/ajax/media/register`,
   ajaxMediaUpdate: () => `${ADMIN_HOME}/ajax/media/update`,
+  ajaxMediaReplace: () => `${ADMIN_HOME}/ajax/media/replace`,
 };
 
 /**

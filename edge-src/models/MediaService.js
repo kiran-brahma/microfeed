@@ -1,4 +1,5 @@
 import {randomShortUUID, toSlug} from "../../common-src/StringUtils";
+import {categorizeMedia} from "../../common-src/MediaFileUtils";
 
 // Derive a human title from an original filename or an object key (strip the
 // directory + extension, turn separators into spaces).
@@ -61,8 +62,9 @@ export default class MediaService {
     }
 
     const id = randomShortUUID(11);
-    const finalTitle = (title && title.trim()) || deriveTitle(originalFilename) || deriveTitle(key) || "image";
+    const finalTitle = (title && title.trim()) || deriveTitle(originalFilename) || deriveTitle(key) || "file";
     const finalSlug = await this._uniqueSlug(slug || finalTitle);
+    const category = categorizeMedia(originalFilename || key, contentType);
     await this.mediaRepo.insert({
       id,
       r2_key: key,
@@ -73,7 +75,7 @@ export default class MediaService {
       content_hash: hash || null,
       size: size !== undefined && size !== null ? size : null,
       content_type: contentType || null,
-      category: "image",
+      category,
       width: width !== undefined && width !== null ? width : null,
       height: height !== undefined && height !== null ? height : null,
     });
@@ -83,8 +85,32 @@ export default class MediaService {
       url,
       title: finalTitle,
       slug: finalSlug,
+      category,
       deduped: false,
     };
+  }
+
+  /**
+   * Replace the bytes of an existing media object in place. The caller has
+   * already PUT the new bytes to the SAME r2 object key, so every reference in
+   * the project (which points at that unchanged url) now serves the new file.
+   * Here we only refresh the row's derived metadata (hash/size/content type/
+   * category). r2_key, url, title and slug are intentionally preserved so all
+   * existing links keep working.
+   */
+  async replaceObject(id, {hash, size, contentType} = {}) {
+    const row = await this.mediaRepo.getById(id);
+    if (!row) {
+      return {error: "not found"};
+    }
+    const category = categorizeMedia(row.original_filename || row.r2_key, contentType) || row.category;
+    await this.mediaRepo.update(id, {
+      content_hash: hash || null,
+      size: size !== undefined && size !== null ? size : row.size,
+      content_type: contentType || row.content_type,
+      category,
+    });
+    return {id, url: row.url, category, replaced: true};
   }
 
   /**
@@ -142,8 +168,9 @@ export default class MediaService {
       }
       const id = randomShortUUID(11);
       const filename = String(obj.key).split("/").pop() || "";
-      const title = deriveTitle(obj.key) || "image";
+      const title = deriveTitle(obj.key) || "file";
       const slug = await this._uniqueSlug(title);
+      const category = categorizeMedia(obj.key);
       await this.mediaRepo.insert({
         id,
         r2_key: obj.key,
@@ -156,9 +183,9 @@ export default class MediaService {
         content_hash: null,
         size: obj.size !== undefined && obj.size !== null ? obj.size : null,
         content_type: null,
-        category: "image",
+        category,
       });
-      added.push({id, r2_key: obj.key, url: obj.key, title, slug});
+      added.push({id, r2_key: obj.key, url: obj.key, title, slug, category});
     }
     return {added};
   }

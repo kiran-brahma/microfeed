@@ -299,5 +299,98 @@ describe("MediaService", () => {
         db.close();
       }
     });
+
+    test("categorizes backfilled objects by file type (image/audio/video/document)", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const store = {
+        deleteObject: jest.fn().mockResolvedValue(undefined),
+        listObjects: jest.fn().mockResolvedValue([
+          {key: "proj/prod/images/a.png", size: 1},
+          {key: "proj/prod/media/song.mp3", size: 2},
+          {key: "proj/prod/media/clip.mp4", size: 3},
+          {key: "proj/prod/media/doc.pdf", size: 4},
+        ]),
+      };
+      const {service, mediaRepo} = makeService(db, store);
+      try {
+        await service.reconcileFromR2();
+        const rows = (await mediaRepo.listAll()).results;
+        const byKey = Object.fromEntries(rows.map((r) => [r.r2_key, r.category]));
+        expect(byKey["proj/prod/images/a.png"]).toBe("image");
+        expect(byKey["proj/prod/media/song.mp3"]).toBe("audio");
+        expect(byKey["proj/prod/media/clip.mp4"]).toBe("video");
+        expect(byKey["proj/prod/media/doc.pdf"]).toBe("document");
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("registerUpload category", () => {
+    test("categorizes an upload from its original filename", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaRepo} = makeService(db);
+      try {
+        const r = await service.registerUpload({
+          hash: "hx",
+          key: "proj/prod/media/track.mp3",
+          url: "proj/prod/media/track.mp3",
+          originalFilename: "track.mp3",
+          contentType: "audio/mpeg",
+        });
+        expect(r.category).toBe("audio");
+        const row = await mediaRepo.getById(r.id);
+        expect(row.category).toBe("audio");
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("replaceObject", () => {
+    test("refreshes hash/size/content-type but preserves url, title and slug so links persist", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaRepo} = makeService(db);
+      try {
+        const created = await service.registerUpload({
+          hash: "old-hash",
+          key: "proj/prod/images/photo.png",
+          url: "proj/prod/images/photo.png",
+          originalFilename: "photo.png",
+          size: 100,
+          contentType: "image/png",
+        });
+
+        const result = await service.replaceObject(created.id, {
+          hash: "new-hash",
+          size: 555,
+          contentType: "image/jpeg",
+        });
+        expect(result.replaced).toBe(true);
+        expect(result.url).toBe("proj/prod/images/photo.png");
+
+        const row = await mediaRepo.getById(created.id);
+        expect(row.url).toBe("proj/prod/images/photo.png"); // unchanged → links persist
+        expect(row.r2_key).toBe("proj/prod/images/photo.png");
+        expect(row.title).toBe(created.title);
+        expect(row.slug).toBe(created.slug);
+        expect(row.content_hash).toBe("new-hash");
+        expect(row.size).toBe(555);
+        expect(row.content_type).toBe("image/jpeg");
+      } finally {
+        db.close();
+      }
+    });
+
+    test("returns an error for an unknown id", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service} = makeService(db);
+      try {
+        const result = await service.replaceObject("missing", {hash: "h"});
+        expect(result.error).toBe("not found");
+      } finally {
+        db.close();
+      }
+    });
   });
 });

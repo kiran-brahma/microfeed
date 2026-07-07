@@ -264,11 +264,17 @@ export default class MediaLibrary extends React.Component {
 
   filteredItems() {
     const {items, query} = this.state;
+    const {imagesOnly} = this.props;
     const q = query.trim().toLowerCase();
-    if (!q) {
-      return items;
+    let rows = items;
+    // The inventory now holds every file type; the picker only inserts images.
+    if (imagesOnly) {
+      rows = rows.filter((m) => (m.category || 'image') === 'image');
     }
-    return items.filter((m) =>
+    if (!q) {
+      return rows;
+    }
+    return rows.filter((m) =>
       (m.title || '').toLowerCase().includes(q) ||
       (m.slug || '').toLowerCase().includes(q) ||
       (m.original_filename || '').toLowerCase().includes(q));

@@ -108,12 +108,55 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
   });
 }
 
+/**
+ * Replace an existing media object's bytes IN PLACE. PUTs the new file to the
+ * SAME r2 key so every reference to that url now serves the new file, then
+ * refreshes the inventory row's metadata. `existingKey` is the media row's
+ * internal, project/env-prefixed url (=== its r2 key).
+ */
+function replaceFile(file, existingKey, mediaId, onProgress, onDone, onFailure) {
+  const {size, type} = file;
+  readArrayBuffer(file).then(async (arrayBuffer) => {
+    if (!arrayBuffer) {
+      return;
+    }
+    let hash = null;
+    try {
+      hash = await sha256Hex(arrayBuffer);
+    } catch (e) {
+      // Hashing is best-effort.
+    }
+    axiosPost('/admin/ajax/r2-ops', {size, key: existingKey, type}).then((res) => {
+      const {presignedUrl} = res.data;
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", presignedUrl, true);
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable && onProgress) {
+          onProgress(event.loaded / event.total);
+        }
+      });
+      xhr.addEventListener("loadend", () => {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          axiosPost('/admin/ajax/media/replace', {id: mediaId, hash, size, contentType: type})
+            .then(() => onDone && onDone())
+            .catch((err) => onFailure && onFailure(err));
+        } else if (onFailure) {
+          onFailure(new Error('upload failed'));
+        }
+      });
+      xhr.addEventListener("error", (event) => onFailure && onFailure(event));
+      xhr.send(arrayBuffer);
+    }).catch((error) => onFailure && onFailure(error));
+  }).catch((error) => onFailure && onFailure(error));
+}
+
 const Requests = {
   axiosGet,
   axiosPost,
   axiosPut,
   axiosDelete,
   upload: uploadFile,
+  replace: replaceFile,
 };
 
 export default Requests;

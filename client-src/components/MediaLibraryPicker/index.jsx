@@ -34,6 +34,7 @@ export default class MediaLibraryPicker extends React.Component {
       >
         <MediaLibrary
           selectMode
+          imagesOnly
           onSelect={(absoluteUrl, media) => {
             this.setState({isOpen: false});
             if (onSelect) {
