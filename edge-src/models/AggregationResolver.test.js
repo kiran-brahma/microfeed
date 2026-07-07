@@ -307,16 +307,16 @@ describe("AggregationResolver", () => {
     try {
       const sourceId = await createBlogArticle(contentService, itemRepo, "Source Post");
       const outgoingPhoto = await createPhoto(contentService, itemRepo, "Outgoing Photo");
-      await itemRepo.update(outgoingPhoto, {title: "Outgoing Photo Updated"});
+      await contentService.update(outgoingPhoto, {title: "Outgoing Photo Updated"});
 
       const outgoingGallery = await createGallery(contentService, itemRepo, "Outgoing Gallery", []);
-      await itemRepo.update(outgoingGallery.id, {title: "Outgoing Gallery Updated"});
+      await contentService.update(outgoingGallery.id, {title: "Outgoing Gallery Updated"});
 
       const outgoingLanding = await createLandingPage(contentService, itemRepo, "Outgoing Landing", {});
-      await itemRepo.update(outgoingLanding.id, {title: "Outgoing Landing Updated"});
+      await contentService.update(outgoingLanding.id, {title: "Outgoing Landing Updated"});
 
       const incomingOnlyBlog = await createBlogArticle(contentService, itemRepo, "Incoming Only Blog");
-      await itemRepo.update(incomingOnlyBlog, {title: "Incoming Only Blog Updated"});
+      await contentService.update(incomingOnlyBlog, {title: "Incoming Only Blog Updated"});
 
       const hiddenRelated = await createBlogArticle(contentService, itemRepo, "Hidden Related");
       await itemRepo.update(hiddenRelated, {status: STATUSES.UNPUBLISHED});
@@ -331,19 +331,19 @@ describe("AggregationResolver", () => {
       ).bind(sourceId, outgoingPhoto, RELATED_CONTENT, 0).run();
       await db.prepare(
         "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
-      ).bind(sourceId, outgoingGallery.id, RELATED_CONTENT, 0).run();
+      ).bind(sourceId, outgoingGallery.id, RELATED_CONTENT, 1).run();
       await db.prepare(
         "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
-      ).bind(sourceId, outgoingLanding.id, RELATED_CONTENT, 0).run();
+      ).bind(sourceId, outgoingLanding.id, RELATED_CONTENT, 2).run();
       await db.prepare(
         "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
       ).bind(incomingOnlyBlog, sourceId, RELATED_CONTENT, 0).run();
       await db.prepare(
         "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
-      ).bind(sourceId, hiddenRelated, RELATED_CONTENT, 0).run();
+      ).bind(sourceId, hiddenRelated, RELATED_CONTENT, 3).run();
       await db.prepare(
         "INSERT INTO item_relations (parent_item_id, child_item_id, rel_type, position) VALUES (?, ?, ?, ?)",
-      ).bind(sourceId, homeId, RELATED_CONTENT, 0).run();
+      ).bind(sourceId, homeId, RELATED_CONTENT, 4).run();
 
       const sourceRow = await itemRepo.getById(sourceId);
       const resolved = await resolver.resolveRelated(sourceRow);

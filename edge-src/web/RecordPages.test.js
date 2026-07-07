@@ -52,6 +52,43 @@ async function linkRelatedContent(db, parentId, childIds) {
   }
 }
 
+function slugify(title) {
+  return title.toLowerCase().replace(/\s+/g, "-");
+}
+
+async function createBlogArticle(service, itemRepo, title) {
+  await service.create("blog_article", {
+    status: "published",
+    title,
+    content_html: "<p>Body copy</p>",
+  });
+  return itemRepo.getByTypeAndSlug("blog_article", slugify(title));
+}
+
+async function createPhoto(service, itemRepo, title) {
+  await service.create("photo", {
+    status: "published",
+    title,
+    image: "https://cdn.example.com/production/photo.png",
+    caption: title,
+  });
+  return itemRepo.getByTypeAndSlug("photo", slugify(title));
+}
+
+async function createPodcastEpisode(service, itemRepo, title) {
+  await service.create("podcast_episode", {
+    status: "published",
+    title,
+    content_html: "<p>Show notes</p>",
+    attachment: {
+      category: "audio",
+      url: "https://cdn.example.com/production/episode.mp3",
+      mime_type: "audio/mpeg",
+    },
+  });
+  return itemRepo.getByTypeAndSlug("podcast_episode", slugify(title));
+}
+
 describe("record type web pages", () => {
   test("published blog_article renders 200 with title, content_html body, and tags", async () => {
     const db = createMigratedInMemoryDatabase();
