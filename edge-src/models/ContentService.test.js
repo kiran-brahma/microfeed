@@ -246,6 +246,111 @@ describe("ContentService", () => {
     }
   });
 
+  test("create honours an explicit user-defined slug instead of inferring from the title", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "My Very Long Title",
+        slug: "custom-handle",
+        content_html: "<p>Body</p>",
+      });
+
+      expect(await itemRepo.getByTypeAndSlug("blog_article", "custom-handle")).toBeTruthy();
+      expect(await itemRepo.getByTypeAndSlug("blog_article", "my-very-long-title")).toBeNull();
+    } finally {
+      db.close();
+    }
+  });
+
+  test("create normalizes a messy explicit slug to a url-safe form", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "Whatever",
+        slug: "Hello World! Special/Chars",
+        content_html: "<p>Body</p>",
+      });
+
+      const rows = (await itemRepo.list()).results;
+      expect(rows).toHaveLength(1);
+      const {slug} = rows[0];
+      expect(slug).toMatch(/^[a-z0-9-]+$/);
+      expect(slug.startsWith("hello-world")).toBe(true);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("update preserves the existing slug when the title changes and no slug is given", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "First Title",
+        content_html: "<p>Body</p>",
+      });
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "first-title");
+
+      await service.update(existing.id, {title: "A Completely New Title"});
+
+      const updated = await itemRepo.getById(existing.id);
+      expect(updated.slug).toBe("first-title");
+      expect(JSON.parse(updated.data).title).toBe("A Completely New Title");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("update changes the slug when an explicit slug is provided", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {
+        status: "published",
+        title: "First Title",
+        content_html: "<p>Body</p>",
+      });
+      const existing = await itemRepo.getByTypeAndSlug("blog_article", "first-title");
+
+      await service.update(existing.id, {slug: "brand-new-slug"});
+
+      const updated = await itemRepo.getById(existing.id);
+      expect(updated.slug).toBe("brand-new-slug");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("update rejects an explicit slug that collides with another item of the same type", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      await service.create("blog_article", {status: "published", title: "Post One", content_html: "<p>1</p>"});
+      await service.create("blog_article", {status: "published", title: "Post Two", content_html: "<p>2</p>"});
+      const two = await itemRepo.getByTypeAndSlug("blog_article", "post-two");
+
+      const result = await service.update(two.id, {slug: "post-one"});
+
+      expect(result).toEqual({
+        errors: expect.arrayContaining([expect.objectContaining({field: "slug"})]),
+      });
+      // Unchanged.
+      expect((await itemRepo.getById(two.id)).slug).toBe("post-two");
+    } finally {
+      db.close();
+    }
+  });
+
   test("delete soft-deletes an item, keeping it retrievable but excluded from active listings", async () => {
     const db = createMigratedInMemoryDatabase();
     const {itemRepo, service} = makeService(db);
