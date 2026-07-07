@@ -1,6 +1,7 @@
 import React from "react";
 import FormRenderer from "../../../components/FormRenderer";
 import AdminInput from "../../../components/AdminInput";
+import AdminDialog from "../../../components/AdminDialog";
 import { mediaWidgets, tagsWidget, referenceWidget } from "../../../components/FormRenderer/widgets";
 import FilterTagsWidget from "../../../components/FormRenderer/widgets/FilterTagsWidget";
 import LandingPreview from "../LandingPreview";
@@ -12,13 +13,67 @@ import { getByPath, setByPath } from "../../../common/objectPath";
 
 const SUBMIT_STATUS__START = 1;
 
+const METADATA_FIELD_KEYS = new Set([
+  "status",
+  "author",
+  "excerpt",
+  "tags",
+  "date_published_ms",
+  "seo_title",
+  "seo_description",
+  "share_image",
+  "noindex",
+  "content_types",
+  "filter_tags",
+  "sort",
+  "limit",
+  "layout",
+  "show_in_nav",
+  "members",
+  "guid",
+  "url",
+  "itunes:title",
+  "itunes:block",
+  "itunes:episodeType",
+  "itunes:season",
+  "itunes:episode",
+  "itunes:explicit",
+  "copyright",
+  "language",
+  "publisher",
+  "link",
+  "categories",
+]);
+
+function isMobileViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
+function isMetadataField(fieldDef) {
+  return METADATA_FIELD_KEYS.has(fieldDef.key) || fieldDef.key.startsWith("seo_");
+}
+
+function splitFieldDefs(fieldDefs) {
+  const primaryFieldDefs = [];
+  const metadataFieldDefs = [];
+  (fieldDefs || []).forEach((fieldDef) => {
+    if (isMetadataField(fieldDef)) {
+      metadataFieldDefs.push(fieldDef);
+    } else {
+      primaryFieldDefs.push(fieldDef);
+    }
+  });
+  return {primaryFieldDefs, metadataFieldDefs};
+}
+
 function seedPayload(contentType, item) {
   if (!item) {
     return {};
   }
   const fieldDefs = getFieldDefs(contentType);
-  // Seed by feedMapping.source so the form's value shape matches what
-  // FormRenderer reads and the API expects (see objectPath / itemMapper).
   let payload = {};
   fieldDefs.forEach((fieldDef) => {
     const value = getByPath(item, fieldDef.feedMapping.source);
@@ -29,18 +84,68 @@ function seedPayload(contentType, item) {
   return payload;
 }
 
+function MetadataPanel({
+  payload,
+  errors,
+  metadataFieldDefs,
+  publicBucketUrl,
+  showSlug,
+  onChange,
+}) {
+  const slugError = errors.find((err) => err.field === "slug");
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {showSlug && (
+        <div className="lh-page-card">
+          <AdminInput
+            label="URL slug"
+            value={payload.slug || ""}
+            placeholder={toSlug(payload.title) || "auto-generated"}
+            onChange={(e) => onChange({ ...payload, slug: e.target.value })}
+          />
+          <div className="text-xs text-gray-400 mt-1">
+            {(() => {
+              const finalSlug = toSlug(payload.slug) || toSlug(payload.title) || "(auto)";
+              return <span>URL: <span className="text-gray-600 font-mono">/{finalSlug}</span></span>;
+            })()}
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">
+            Leave blank to generate from the title. On edit, the slug stays fixed unless you change it here.
+          </div>
+          {slugError && <div className="text-xs text-red-500 mt-2">{slugError.message}</div>}
+        </div>
+      )}
+      {metadataFieldDefs.length > 0 && (
+        <div className="lh-page-card">
+          <FormRenderer
+            fieldDefs={metadataFieldDefs}
+            value={payload}
+            onChange={onChange}
+            errors={errors}
+            widgets={{
+              ...mediaWidgets(publicBucketUrl),
+              ...tagsWidget(),
+              ...referenceWidget(),
+              filter_tags: FilterTagsWidget,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default class SchemaItemEditor extends React.Component {
   constructor(props) {
     super(props);
 
     this.onSave = this.onSave.bind(this);
+    this.toggleMetadataRail = this.toggleMetadataRail.bind(this);
 
     const { contentType, item } = props;
     const typeDef = getType(contentType);
     const slugEditable = typeDef.slugEditable !== false;
     this.state = {
-      // Seed the schema fields plus the system-level slug (edited separately
-      // from the content-type fields, so the user can define the url).
       payload: {
         ...seedPayload(contentType, item),
         ...(slugEditable && item && item.slug ? { slug: item.slug } : {}),
@@ -48,6 +153,7 @@ export default class SchemaItemEditor extends React.Component {
       errors: [],
       submitStatus: null,
       topLevelError: null,
+      metadataRailOpen: !isMobileViewport(),
     };
   }
 
@@ -70,7 +176,9 @@ export default class SchemaItemEditor extends React.Component {
         showToast(isEdit ? "Updated!" : "Created!", "success");
         this.setState({ submitStatus: null }, () => {
           setTimeout(() => {
-            window.location.href = ADMIN_URLS.allItems();
+            if (process.env.NODE_ENV !== "test") {
+              window.location.href = ADMIN_URLS.allItems();
+            }
           }, 800);
         });
       })
@@ -88,71 +196,100 @@ export default class SchemaItemEditor extends React.Component {
       });
   }
 
+  toggleMetadataRail() {
+    this.setState((prevState) => ({ metadataRailOpen: !prevState.metadataRailOpen }));
+  }
+
   render() {
     const { contentType, item, publicBucketUrl } = this.props;
-    const { payload, errors, submitStatus, topLevelError } = this.state;
+    const { payload, errors, submitStatus, topLevelError, metadataRailOpen } = this.state;
     const isEdit = !!item;
     const submitting = submitStatus === SUBMIT_STATUS__START;
     const fieldDefs = getFieldDefs(contentType);
+    const {primaryFieldDefs, metadataFieldDefs} = splitFieldDefs(fieldDefs);
     const isLandingPage = contentType === "landing_page";
     const slugEditable = getType(contentType).slugEditable !== false;
-    const slugError = errors.find((err) => err.field === "slug");
+    const mobile = isMobileViewport();
+    const metadataPanel = (
+      <MetadataPanel
+        payload={payload}
+        errors={errors}
+        metadataFieldDefs={metadataFieldDefs}
+        publicBucketUrl={publicBucketUrl}
+        showSlug={slugEditable}
+        onChange={(nextPayload) => this.setState({ payload: nextPayload })}
+      />
+    );
 
     return (
-      <form className="grid grid-cols-12 gap-4" onSubmit={this.onSave}>
-        <div className="col-span-9 grid grid-cols-1 gap-4">
-          <div className="lh-page-card">
-            {topLevelError && (
-              <div className="text-sm text-red-500 mb-4">{topLevelError}</div>
-            )}
-            <FormRenderer
-              fieldDefs={fieldDefs}
-              value={payload}
-              onChange={(nextPayload) => this.setState({ payload: nextPayload })}
-              errors={errors}
-              widgets={{
-                ...mediaWidgets(publicBucketUrl),
-                ...tagsWidget(),
-                ...referenceWidget(),
-                filter_tags: FilterTagsWidget,
-              }}
-            />
-          </div>
-          {isLandingPage && <LandingPreview payload={payload} />}
-        </div>
-        <div className="col-span-3">
-          <div className="sticky top-8 grid grid-cols-1 gap-4">
-            {slugEditable && (
-              <div className="lh-page-card">
-                <AdminInput
-                  label="URL slug"
-                  value={payload.slug || ''}
-                  placeholder={toSlug(payload.title) || 'auto-generated'}
-                  onChange={(e) => this.setState({ payload: { ...payload, slug: e.target.value } })}
-                />
-                <div className="text-xs text-gray-400 mt-1">
-                  {(() => {
-                    const finalSlug = toSlug(payload.slug) || toSlug(payload.title) || '(auto)';
-                    return <span>URL: <span className="text-gray-600 font-mono">/{finalSlug}</span></span>;
-                  })()}
-                </div>
-                <div className="text-[11px] text-gray-400 mt-1">
-                  Leave blank to generate from the title. On edit, the slug stays fixed unless you change it here.
-                </div>
-                {slugError && <div className="text-xs text-red-500 mt-2">{slugError.message}</div>}
-              </div>
-            )}
-            <div className="lh-page-card text-center">
-              <button
-                type="submit"
-                className="lh-btn lh-btn-brand-dark lh-btn-lg"
-                onClick={this.onSave}
-                disabled={submitting}
-              >
-                {submitting ? "Saving..." : isEdit ? "Update" : "Create"}
-              </button>
+      <form className="flex flex-col gap-4" onSubmit={this.onSave}>
+        <header aria-label="Editor header" className="sticky top-0 z-20 bg-bgsecondary-color/95 backdrop-blur border-b border-bdgray-color px-4 py-3 lg:px-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-gray-500">Editor</div>
+              {topLevelError && (
+                <div className="text-sm text-red-500 mt-1">{topLevelError}</div>
+              )}
             </div>
+            <button
+              type="button"
+              className="lh-btn lh-btn-secondary lh-btn-sm"
+              onClick={this.toggleMetadataRail}
+            >
+              {metadataRailOpen ? "Collapse metadata" : "Expand metadata"}
+            </button>
+            <button
+              type="submit"
+              className="lh-btn lh-btn-brand-dark lh-btn-lg"
+              onClick={this.onSave}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : isEdit ? "Update" : "Create"}
+            </button>
           </div>
+        </header>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <main className="min-w-0 grid grid-cols-1 gap-4">
+            <div className="lh-page-card">
+              <FormRenderer
+                fieldDefs={primaryFieldDefs}
+                value={payload}
+                onChange={(nextPayload) => this.setState({ payload: nextPayload })}
+                errors={errors}
+                widgets={{
+                  ...mediaWidgets(publicBucketUrl),
+                  ...tagsWidget(),
+                  ...referenceWidget(),
+                  filter_tags: FilterTagsWidget,
+                }}
+              />
+            </div>
+            {isLandingPage && <LandingPreview payload={payload} />}
+          </main>
+          {mobile ? (
+            <>
+              {metadataRailOpen && (
+                <AdminDialog
+                  title="Metadata"
+                  isOpen={metadataRailOpen}
+                  setIsOpen={(next) => {
+                    if (!next) {
+                      this.toggleMetadataRail();
+                    }
+                  }}
+                  widthClass="w-full sm:max-w-xl"
+                >
+                  {metadataPanel}
+                </AdminDialog>
+              )}
+            </>
+          ) : (
+            metadataRailOpen && (
+              <aside aria-label="Metadata rail" className="lg:sticky lg:top-24 grid grid-cols-1 gap-4 self-start">
+                {metadataPanel}
+              </aside>
+            )
+          )}
         </div>
       </form>
     );
