@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SchemaItemEditor from "./index";
 import Requests from "../../../common/requests";
@@ -23,11 +23,19 @@ beforeEach(() => {
 });
 
 describe("SchemaItemEditor", () => {
+  async function renderEditor(ui) {
+    const result = render(ui);
+    await waitFor(() => {
+      expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/tags");
+    });
+    return result;
+  }
+
   test("NEW: filling in title and saving calls axiosPost with content_type + title", async () => {
     const user = userEvent.setup();
     Requests.axiosPost.mockResolvedValue({ status: 201, data: { id: "new-id-123" } });
 
-    render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+    await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
     // Locate the title text input via the surrounding label text "title".
     const titleLabel = screen.getByText(/^title/i);
@@ -56,7 +64,7 @@ describe("SchemaItemEditor", () => {
       excerpt: "orig excerpt",
     };
 
-    render(
+    await renderEditor(
       <SchemaItemEditor
         contentType="blog_article"
         item={item}
@@ -88,7 +96,7 @@ describe("SchemaItemEditor", () => {
       },
     });
 
-    render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+    await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
     const saveButton = screen.getByRole("button", { name: /save|create/i });
     await user.click(saveButton);
@@ -97,7 +105,7 @@ describe("SchemaItemEditor", () => {
   });
 
   test("landing_page: renders the LandingPreview beneath the form and posts the current payload to the preview endpoint", async () => {
-    render(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
+    await renderEditor(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
 
     await waitFor(() => {
       expect(Requests.axiosPost).toHaveBeenCalledWith(
@@ -109,7 +117,7 @@ describe("SchemaItemEditor", () => {
   });
 
   test("landing_page: filter_tags uses the tag picker widget (loads tags) instead of the comma-separated fallback", async () => {
-    render(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
+    await renderEditor(<SchemaItemEditor contentType="landing_page" publicBucketUrl="https://cdn.example.com" />);
 
     await waitFor(() => {
       expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/tags");
@@ -117,9 +125,21 @@ describe("SchemaItemEditor", () => {
     expect(screen.queryByPlaceholderText("comma, separated, values")).not.toBeInTheDocument();
   });
 
-  test("non-landing content types do not render the LandingPreview", () => {
-    render(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+  test("non-landing content types do not render the LandingPreview", async () => {
+    await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
     expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
+  });
+
+  test("keeps primary save actions in a sticky editor header and metadata in the right rail", async () => {
+    await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
+
+    const header = screen.getByRole("banner", { name: /editor header/i });
+    const metadataRail = screen.getByRole("complementary", { name: /metadata rail/i });
+
+    expect(within(header).getByRole("button", { name: /create/i })).toBeInTheDocument();
+    expect(within(metadataRail).getByRole("textbox", { name: /url slug/i })).toBeInTheDocument();
+    expect(within(metadataRail).getByRole("combobox", { name: /status/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /collapse metadata/i })).toBeInTheDocument();
   });
 });

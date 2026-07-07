@@ -92,7 +92,7 @@ const TYPE_DEFINITIONS = [
     fieldDefs: [
       makeFieldDef("status", "enum", {...STATUS_ENUM_EXTRA}),
       makeFieldDef("title", "text", {required: true}),
-      makeFieldDef("content_html", "richtext", {required: true, target: "description"}),
+      makeFieldDef("content_html", "richtext", {required: true, target: "description", allowHtmlSourceMode: true}),
       makeFieldDef("image", "image"),
       makeFieldDef("excerpt", "text"),
       makeFieldDef("author", "text"),
@@ -134,7 +134,7 @@ const TYPE_DEFINITIONS = [
     fieldDefs: [
       makeFieldDef("status", "enum", {...STATUS_ENUM_EXTRA}),
       makeFieldDef("title", "text", {required: true}),
-      makeFieldDef("content_html", "richtext", {target: "description"}),
+      makeFieldDef("content_html", "richtext", {target: "description", allowHtmlSourceMode: true}),
       makeFieldDef("image", "image"),
       makeFieldDef("content_types", "enum", {
         multiple: true,
