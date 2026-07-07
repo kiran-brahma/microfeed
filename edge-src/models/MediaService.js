@@ -98,7 +98,7 @@ export default class MediaService {
    * category). r2_key, url, title and slug are intentionally preserved so all
    * existing links keep working.
    */
-  async replaceObject(id, {hash, size, contentType} = {}) {
+  async replaceObject(id, {hash, size, contentType, width, height} = {}) {
     const row = await this.mediaRepo.getById(id);
     if (!row) {
       return {error: "not found"};
@@ -109,8 +109,17 @@ export default class MediaService {
       size: size !== undefined && size !== null ? size : row.size,
       content_type: contentType || row.content_type,
       category,
+      width: width !== undefined && width !== null ? width : row.width,
+      height: height !== undefined && height !== null ? height : row.height,
     });
-    return {id, url: row.url, category, replaced: true};
+    return {
+      id,
+      url: row.url,
+      category,
+      width: width !== undefined && width !== null ? width : row.width,
+      height: height !== undefined && height !== null ? height : row.height,
+      replaced: true,
+    };
   }
 
   /**

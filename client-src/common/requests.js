@@ -40,13 +40,13 @@ function readArrayBuffer(file) {
 
 // Register a stored object in the media inventory (best-effort; never blocks
 // the upload result on failure).
-function registerMedia({key, url, hash, size, contentType, originalFilename}) {
+function registerMedia({key, url, hash, size, contentType, originalFilename, width, height}) {
   return axiosPost('/admin/ajax/media/register', {
-    key, url, hash, size, contentType, originalFilename,
+    key, url, hash, size, contentType, originalFilename, width, height,
   }).catch(() => {});
 }
 
-function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2OpsFailure) {
+function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2OpsFailure, meta = {}) {
   const { size, type, name } = file;
   readArrayBuffer(file).then(async (arrayBuffer) => {
     if (!arrayBuffer) {
@@ -61,7 +61,7 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
       const check = await axiosPost('/admin/ajax/media/check-hash', {hash});
       if (check && check.data && check.data.deduped && check.data.url) {
         onProgress(1);
-        onUploaded(check.data.url, arrayBuffer);
+        onUploaded(check.data.url, arrayBuffer, meta);
         return;
       }
     } catch (e) {
@@ -90,8 +90,17 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
           // key === url === the internal, project/env-prefixed object key, so
           // it lines up with reconcileFromR2 (which keys rows by the full R2
           // object key) and dedup stays consistent across both paths.
-          registerMedia({key: mediaUrl, url: mediaUrl, hash, size, contentType: type, originalFilename: name})
-            .then(() => onUploaded(mediaUrl, arrayBuffer));
+          registerMedia({
+            key: mediaUrl,
+            url: mediaUrl,
+            hash,
+            size,
+            contentType: type,
+            originalFilename: name,
+            width: meta.width,
+            height: meta.height,
+          })
+            .then(() => onUploaded(mediaUrl, arrayBuffer, meta));
         }
       });
       xhr.addEventListener("error", (event) => {
@@ -114,7 +123,7 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
  * refreshes the inventory row's metadata. `existingKey` is the media row's
  * internal, project/env-prefixed url (=== its r2 key).
  */
-function replaceFile(file, existingKey, mediaId, onProgress, onDone, onFailure) {
+function replaceFile(file, existingKey, mediaId, onProgress, onDone, onFailure, meta = {}) {
   const {size, type} = file;
   readArrayBuffer(file).then(async (arrayBuffer) => {
     if (!arrayBuffer) {
@@ -137,7 +146,7 @@ function replaceFile(file, existingKey, mediaId, onProgress, onDone, onFailure) 
       });
       xhr.addEventListener("loadend", () => {
         if (xhr.readyState === 4 && xhr.status === 200) {
-          axiosPost('/admin/ajax/media/replace', {id: mediaId, hash, size, contentType: type})
+          axiosPost('/admin/ajax/media/replace', {id: mediaId, hash, size, contentType: type, width: meta.width, height: meta.height})
             .then(() => onDone && onDone())
             .catch((err) => onFailure && onFailure(err));
         } else if (onFailure) {

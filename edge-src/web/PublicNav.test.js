@@ -16,6 +16,8 @@ describe("PublicNav", () => {
     expect(brandLink).toHaveAttribute("href", "/");
     const logo = screen.getByRole("img");
     expect(logo).toHaveAttribute("src", "https://cdn.example.com/logo.png");
+    expect(logo).toHaveClass("public-nav__logo");
+    expect(logo.parentElement).toHaveClass("public-nav__logo-box");
   });
 
   test("falls back to channel title text when channel.image is empty", () => {

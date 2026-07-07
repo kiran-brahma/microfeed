@@ -8,13 +8,38 @@ import ImageUploadWidget from "./ImageUploadWidget";
 import MediaUploadWidget from "./MediaUploadWidget";
 import { mediaWidgets } from "./index";
 import Requests from "../../../common/requests";
+import Cropper from "cropperjs";
 
 jest.mock("../../../common/requests", () => ({
   __esModule: true,
   default: { upload: jest.fn() },
 }));
 
+jest.mock("cropperjs", () => jest.fn());
+
 const PUBLIC_BUCKET_URL = "https://cdn.example.com";
+
+beforeAll(() => {
+  if (!window.URL.createObjectURL) {
+    window.URL.createObjectURL = jest.fn(() => "blob:mock");
+  } else {
+    jest.spyOn(window.URL, "createObjectURL").mockImplementation(() => "blob:mock");
+  }
+  if (!window.URL.revokeObjectURL) {
+    window.URL.revokeObjectURL = jest.fn();
+  } else {
+    jest.spyOn(window.URL, "revokeObjectURL").mockImplementation(() => {});
+  }
+});
+
+afterAll(() => {
+  if (window.URL.createObjectURL && window.URL.createObjectURL.mockRestore) {
+    window.URL.createObjectURL.mockRestore();
+  }
+  if (window.URL.revokeObjectURL && window.URL.revokeObjectURL.mockRestore) {
+    window.URL.revokeObjectURL.mockRestore();
+  }
+});
 
 function makeFile(name, type) {
   return new File(["dummy content"], name, { type });
@@ -23,6 +48,16 @@ function makeFile(name, type) {
 describe("ImageUploadWidget", () => {
   beforeEach(() => {
     Requests.upload.mockReset();
+    Cropper.mockReset();
+    Cropper.mockImplementation(() => ({
+      getImageData: jest.fn(() => ({ naturalWidth: 1200, naturalHeight: 900 })),
+      getCroppedCanvas: jest.fn(() => ({
+        toBlob: (cb) => cb(new Blob(["cropped"], { type: "image/avif" })),
+      })),
+      disable: jest.fn(),
+      destroy: jest.fn(),
+      setCropBoxData: jest.fn(),
+    }));
   });
 
   test("selecting a file calls Requests.upload and onChange fires with the returned url; preview then appears using publicBucketUrl", async () => {
@@ -31,6 +66,7 @@ describe("ImageUploadWidget", () => {
       onUploaded(`production/${cdnFilename}`);
     });
 
+    const user = userEvent.setup();
     const handleChange = jest.fn();
     const fieldDef = { key: "image", kind: "image", label: "Image" };
 
@@ -50,9 +86,15 @@ describe("ImageUploadWidget", () => {
     const file = makeFile("photo.png", "image/png");
     await fireEvent.change(input, { target: { files: [file] } });
 
+    const previewImage = await screen.findByRole("img");
+    fireEvent.load(previewImage);
+
+    const uploadButton = await screen.findByRole("button", { name: /^upload$/i });
+    await user.click(uploadButton);
+
     expect(Requests.upload).toHaveBeenCalledTimes(1);
     const [, cdnFilename] = Requests.upload.mock.calls[0];
-    expect(cdnFilename).toMatch(/^images\/.+\.png$/);
+    expect(cdnFilename).toMatch(/^images\/.+\.avif$/);
 
     await waitFor(() => expect(handleChange).toHaveBeenCalledWith(`production/${cdnFilename}`));
   });

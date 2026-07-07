@@ -15,7 +15,9 @@ export default function PublicNav({channel = {}, navTypes = []}) {
     <nav className="public-nav">
       <a className="public-nav__brand" href="/">
         {channel.image ? (
-          <img className="public-nav__logo" src={channel.image} alt={brandText} />
+          <span className="public-nav__logo-box">
+            <img className="public-nav__logo" src={channel.image} alt={brandText} />
+          </span>
         ) : (
           <span className="public-nav__brand-text">{brandText}</span>
         )}
