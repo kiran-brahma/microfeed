@@ -103,6 +103,29 @@ describe("ops/db/init.sql", () => {
         {table: "items", from: "parent_item_id", to: "id", onDelete: "CASCADE"},
         {table: "items", from: "child_item_id", to: "id", onDelete: "CASCADE"},
       ]));
+
+      expect(getTableColumns(db, "media")).toEqual(expect.arrayContaining([
+        "id",
+        "r2_key",
+        "url",
+        "title",
+        "slug",
+        "original_filename",
+        "content_hash",
+        "size",
+        "content_type",
+        "category",
+        "width",
+        "height",
+        "created_at",
+        "updated_at",
+      ]));
+      expect(getIndexNames(db, "media")).toEqual(expect.arrayContaining([
+        "media_r2_key",
+        "media_slug",
+        "media_content_hash",
+        "media_created_at",
+      ]));
     } finally {
       db.close();
     }

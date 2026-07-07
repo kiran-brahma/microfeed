@@ -30,9 +30,11 @@ export default class MediaLibraryPicker extends React.Component {
         title="Choose from uploaded images"
         isOpen={isOpen}
         setIsOpen={(v) => this.setState({isOpen: v})}
+        widthClass="w-full max-w-5xl"
       >
         <MediaLibrary
           selectMode
+          imagesOnly
           onSelect={(absoluteUrl, media) => {
             this.setState({isOpen: false});
             if (onSelect) {

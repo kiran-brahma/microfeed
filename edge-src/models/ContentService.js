@@ -259,8 +259,10 @@ export default class ContentService extends FeedCrudManager {
     }
 
     const itemId = inputPayload.id || randomShortUUID();
-    const slugSource = normalizeSlugSource(inputPayload.title);
-    const slug = slugSource || randomShortUUID();
+    // Prefer an explicit, user-defined slug; only fall back to inferring one
+    // from the title (then a random id) when none was provided.
+    const explicitSlug = normalizeSlugSource(inputPayload.slug);
+    const slug = explicitSlug || normalizeSlugSource(inputPayload.title) || randomShortUUID();
     const existingWithSlug = await this.itemRepo.getByTypeAndSlug(typeName, slug);
     if (existingWithSlug) {
       return validationError("slug", "Slug already exists for this content type");
@@ -349,8 +351,12 @@ export default class ContentService extends FeedCrudManager {
       deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
     }
 
-    const slugSource = normalizeSlugSource(mergedPublicItem.title);
-    const slug = slugSource || existingRow.slug || randomShortUUID();
+    // On update, an explicit slug in the payload takes effect; otherwise the
+    // existing slug is preserved (editing the title does NOT silently re-slug
+    // and break the item's url). Only brand-new items with neither fall back
+    // to inferring from the title.
+    const explicitSlug = normalizeSlugSource(inputPayload.slug);
+    const slug = explicitSlug || existingRow.slug || normalizeSlugSource(mergedPublicItem.title) || randomShortUUID();
     const existingWithSlug = await this.itemRepo.getByTypeAndSlug(typeName, slug);
     if (existingWithSlug && existingWithSlug.id !== itemId) {
       return validationError("slug", "Slug already exists for this content type");

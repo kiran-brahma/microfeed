@@ -141,6 +141,14 @@ a {
   @apply bg-brand-dark text-white text-sm border border-brand-dark hover:bg-brand-light hover:border-brand-light;
 }
 
+.lh-btn-brand-light {
+  @apply bg-brand-light text-white text-sm border border-brand-light hover:bg-brand-dark hover:border-brand-dark;
+}
+
+.lh-btn-red {
+  @apply bg-red-600 text-white text-sm border border-red-600 hover:bg-red-700 hover:border-red-700;
+}
+
 .lh-btn-sm {
   @apply text-sm py-1 px-2 rounded-sm;
 }

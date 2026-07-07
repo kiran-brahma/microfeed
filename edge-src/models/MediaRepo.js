@@ -4,6 +4,9 @@ const MEDIA_COLUMNS = [
   "id",
   "r2_key",
   "url",
+  "title",
+  "slug",
+  "original_filename",
   "content_hash",
   "size",
   "content_type",
@@ -41,6 +44,17 @@ export default class MediaRepo extends BaseRepo {
     return this.getFirst({
       queryKwargs: {
         r2_key: r2Key,
+      },
+    });
+  }
+
+  async getBySlug(slug) {
+    if (!slug) {
+      return null;
+    }
+    return this.getFirst({
+      queryKwargs: {
+        slug,
       },
     });
   }

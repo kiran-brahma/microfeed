@@ -10,12 +10,23 @@ function jsonResponse(body, status) {
   });
 }
 
+/**
+ * Replace an existing media object's bytes in place. The client has already
+ * PUT the new file to the SAME r2 key (via /admin/ajax/r2-ops with that key),
+ * so every reference to the unchanged url now serves the new file. This only
+ * refreshes the row's derived metadata.
+ */
 export async function onRequestPost({request, env}) {
   const body = await request.json() || {};
-  const {key, url, hash, size, contentType, width, height, originalFilename, title, slug} = body;
+  const {id, hash, size, contentType} = body;
+  if (!id) {
+    return jsonResponse({error: 'id is required'}, 400);
+  }
 
   const mediaService = createMediaService(env, env.FEED_DB, createMediaStore(env));
-  const result = await mediaService.registerUpload({hash, key, url, size, contentType, width, height, originalFilename, title, slug});
-
+  const result = await mediaService.replaceObject(id, {hash, size, contentType});
+  if (result && result.error) {
+    return jsonResponse(result, 404);
+  }
   return jsonResponse(result, 200);
 }
