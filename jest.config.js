@@ -5,6 +5,7 @@ module.exports = {
   moduleNameMapper: {
     "\\.html$": "<rootDir>/test-utils/html-mock.js",
     "\\.css$": "<rootDir>/test-utils/css-mock.js",
+    "^react-drag-drop-files$": "<rootDir>/test-utils/react-drag-drop-files-mock.jsx",
   },
   testPathIgnorePatterns: [
     "/node_modules/",
