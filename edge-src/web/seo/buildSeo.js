@@ -166,17 +166,30 @@ function ensureAbsolute(url, origin) {
 /**
  * Home-page SEO: WebSite node + publisher (Organization|Person).
  */
-export function siteSeo({channel = {}, seoSettings = {}, publicBucketUrl = "", canonicalUrl = ""} = {}) {
-  const siteName = seoSettings.siteName || channel.title || "";
+export function siteSeo({
+  channel = {},
+  homePage = null,
+  seoSettings = {},
+  publicBucketUrl = "",
+  canonicalUrl = "",
+} = {}) {
+  const siteName = seoSettings.siteName || channel.title || homePage?.title || "";
   const description = pageDescription({
-    excerpt: null,
-    caption: null,
-    contentHtml: null,
+    seoDescription: homePage?.seo_description,
+    contentHtml: homePage?.content_html,
     fallback: channel.description || "",
   });
-  const image = ensureAbsolute(resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl) || channel.image || null, siteOrigin(canonicalUrl));
+  const image = ensureAbsolute(
+    resolveSettingsImage(seoSettings.defaultShareImage, publicBucketUrl)
+      || resolveSettingsImage(homePage?.share_image, publicBucketUrl)
+      || resolveSettingsImage(homePage?.image, publicBucketUrl)
+      || channel.image
+      || null,
+    siteOrigin(canonicalUrl),
+  );
   const keywords = mergeKeywords([], seoSettings.keyTerms);
   const publisher = publisherNode(seoSettings, channel, publicBucketUrl);
+  const noindex = homePage?.noindex === true || homePage?.status === "unlisted" || homePage?.status === STATUSES.UNLISTED;
 
   const jsonLd = {
     "@context": SCHEMA_CONTEXT,
@@ -199,7 +212,7 @@ export function siteSeo({channel = {}, seoSettings = {}, publicBucketUrl = "", c
     siteName,
     twitterHandle: seoSettings.twitterHandle || null,
     keywords,
-    noindex: false,
+    noindex,
     publishedTime: null,
     modifiedTime: null,
     author: null,

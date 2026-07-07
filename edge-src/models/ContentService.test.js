@@ -287,6 +287,80 @@ describe("ContentService", () => {
     }
   });
 
+  test("home_page is singleton-locked to the home slug on create and update", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      const createdId = await service.create("home_page", {
+        status: "published",
+        title: "Welcome Home",
+        slug: "custom-slug",
+        content_html: "<p>Home</p>",
+      });
+
+      const created = await itemRepo.getById(createdId);
+      expect(created).toMatchObject({
+        id: createdId,
+        content_type: "home_page",
+        slug: "home",
+      });
+
+      const second = await service.create("home_page", {
+        status: "published",
+        title: "Another Home",
+        content_html: "<p>Duplicate</p>",
+      });
+      expect(second).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "content_type"}),
+        ]),
+      });
+
+      const updateResult = await service.update(createdId, {
+        slug: "still-ignored",
+        title: "Updated Home",
+      });
+      expect(updateResult).toEqual(createdId);
+      expect((await itemRepo.getById(createdId)).slug).toBe("home");
+      expect(JSON.parse((await itemRepo.getById(createdId)).data).title).toBe("Updated Home");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("home_page cannot be deleted or purged", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {itemRepo, service} = makeService(db);
+
+    try {
+      const createdId = await service.create("home_page", {
+        status: "published",
+        title: "Welcome Home",
+        content_html: "<p>Home</p>",
+      });
+
+      const deleteResult = await service.delete(createdId);
+      expect(deleteResult).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "id", message: "Singleton items cannot be deleted"}),
+        ]),
+      });
+
+      await service.update(createdId, {status: "published"});
+      const purgeResult = await service.purge(createdId, {force: true});
+      expect(purgeResult).toEqual({
+        errors: expect.arrayContaining([
+          expect.objectContaining({field: "id", message: "Singleton items cannot be purged"}),
+        ]),
+      });
+
+      expect(await itemRepo.getById(createdId)).toBeTruthy();
+    } finally {
+      db.close();
+    }
+  });
+
   test("update preserves the existing slug when the title changes and no slug is given", async () => {
     const db = createMigratedInMemoryDatabase();
     const {itemRepo, service} = makeService(db);

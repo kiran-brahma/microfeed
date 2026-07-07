@@ -57,4 +57,65 @@ describe("HomePage", () => {
     expect(screen.getByText("Photo")).toBeInTheDocument();
     expect(screen.getByText("Podcast")).toBeInTheDocument();
   });
+
+  test("hybrid home page renders hero, channel toggles, and configured sections", () => {
+    render(
+      <HomePage
+        channel={{
+          title: "My Test Feed",
+          description: "A feed about testing",
+          image: "https://cdn.example.com/channel.png",
+        }}
+        homePage={{
+          title: "Welcome Home",
+          content_html: "<p>Hero body</p>",
+          image: "https://cdn.example.com/home.png",
+          show_channel_title: true,
+          show_channel_description: true,
+          show_channel_image: true,
+          recent_show_date: true,
+          recent_show_excerpt: false,
+          recent_show_badge: false,
+          featured_title: "Featured picks",
+          filtered_title: "Tagged picks",
+        }}
+        recentItems={[
+          {
+            content_type: "photo",
+            slug: "recent-photo",
+            title: "Recent Photo",
+            date_published_ms: Date.UTC(2024, 0, 1),
+          },
+        ]}
+        featuredItems={[
+          {
+            content_type: "blog_article",
+            slug: "featured-story",
+            title: "Featured Story",
+            content_html: "<p>Featured</p>",
+          },
+        ]}
+        filteredItems={[
+          {
+            content_type: "blog_article",
+            slug: "filtered-story",
+            title: "Filtered Story",
+            content_html: "<p>Filtered</p>",
+          },
+        ]}
+        navTypes={[]}
+      />,
+    );
+
+    expect(screen.getByRole("heading", {name: "Welcome Home"})).toBeInTheDocument();
+    expect(screen.getByText("Hero body")).toBeInTheDocument();
+    expect(screen.getByText("A feed about testing")).toBeInTheDocument();
+    expect(screen.getByText("Featured picks")).toBeInTheDocument();
+    expect(screen.getByText("Tagged picks")).toBeInTheDocument();
+    expect(screen.getByText("Recent Photo")).toBeInTheDocument();
+    expect(screen.getByText("Featured Story")).toBeInTheDocument();
+    expect(screen.getByText("Filtered Story")).toBeInTheDocument();
+    expect(screen.queryByText("No recent items yet.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/related content/i)).not.toBeInTheDocument();
+  });
 });

@@ -37,7 +37,6 @@ describe("SchemaItemEditor", () => {
 
     await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
-    // Locate the title text input via the surrounding label text "title".
     const titleLabel = screen.getByText(/^title/i);
     const titleContainer = titleLabel.closest("label") || titleLabel.parentElement;
     const input = titleContainer.querySelector("input");
@@ -129,6 +128,36 @@ describe("SchemaItemEditor", () => {
     await renderEditor(<SchemaItemEditor contentType="blog_article" publicBucketUrl="https://cdn.example.com" />);
 
     expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
+  });
+
+  test("home_page hides the slug editor and submits without slug", async () => {
+    const user = userEvent.setup();
+    Requests.axiosPut.mockResolvedValue({ status: 200, data: { id: "home-1" } });
+
+    await renderEditor(
+      <SchemaItemEditor
+        contentType="home_page"
+        item={{
+          id: "home-1",
+          content_type: "home_page",
+          slug: "home",
+          title: "Home",
+          content_html: "<p>Welcome</p>",
+        }}
+        publicBucketUrl="https://cdn.example.com"
+      />
+    );
+
+    const metadataRail = screen.getByRole("complementary", { name: /metadata rail/i });
+    expect(within(metadataRail).queryByRole("textbox", { name: /url slug/i })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("home")).not.toBeInTheDocument();
+
+    const saveButton = screen.getByRole("button", { name: /save|update/i });
+    await user.click(saveButton);
+
+    await waitFor(() => expect(Requests.axiosPut).toHaveBeenCalled());
+    const [, payload] = Requests.axiosPut.mock.calls[0];
+    expect(payload).not.toHaveProperty("slug");
   });
 
   test("keeps primary save actions in a sticky editor header and metadata in the right rail", async () => {

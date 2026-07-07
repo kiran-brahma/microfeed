@@ -122,7 +122,11 @@ const TYPE_DEFINITIONS = [
       makeFieldDef("title", "text", {required: true}),
       makeFieldDef("content_html", "richtext", {target: "description"}),
       makeFieldDef("image", "image"),
-      makeFieldDef("members", "reference", {required: true, target: "members"}),
+      makeFieldDef("members", "reference", {
+        required: true,
+        target: "members",
+        allowedContentTypes: ["photo"],
+      }),
       makeFieldDef("tags", "tags"),
       makeFieldDef("date_published_ms", "date", {target: "pubDateMs", label: "Publish date"}),
       ...seoFieldDefs(),
@@ -157,6 +161,57 @@ const TYPE_DEFINITIONS = [
       ...seoFieldDefs(),
     ],
   },
+  {
+    name: "home_page",
+    family: "page",
+    singleton: true,
+    slugEditable: false,
+    showInTypePicker: false,
+    fieldDefs: [
+      makeFieldDef("status", "enum", {...STATUS_ENUM_EXTRA}),
+      makeFieldDef("title", "text", {required: true, label: "Hero title"}),
+      makeFieldDef("content_html", "richtext", {label: "Hero rich text", target: "description"}),
+      makeFieldDef("image", "image", {label: "Hero image"}),
+      makeFieldDef("show_channel_title", "boolean", {label: "Show channel title"}),
+      makeFieldDef("show_channel_description", "boolean", {label: "Show channel description"}),
+      makeFieldDef("show_channel_image", "boolean", {label: "Show channel image"}),
+      makeFieldDef("recent_content_types", "enum", {
+        multiple: true,
+        options: CONTENT_TYPE_OPTIONS,
+        label: "Recent content types",
+      }),
+      makeFieldDef("recent_limit", "number", {
+        integer: true,
+        min: 1,
+        label: "Recent item count",
+      }),
+      makeFieldDef("recent_show_date", "boolean", {label: "Show date on recent items"}),
+      makeFieldDef("recent_show_excerpt", "boolean", {label: "Show excerpt on recent items"}),
+      makeFieldDef("recent_show_badge", "boolean", {label: "Show badge on recent items"}),
+      makeFieldDef("featured_title", "text", {label: "Featured section title"}),
+      makeFieldDef("featured_items", "reference", {
+        label: "Featured items",
+        allowedContentTypes: CONTENT_TYPE_OPTIONS,
+      }),
+      makeFieldDef("filtered_title", "text", {label: "Filtered section title"}),
+      makeFieldDef("content_types", "enum", {
+        multiple: true,
+        options: CONTENT_TYPE_OPTIONS,
+        label: "Filtered content types",
+      }),
+      makeFieldDef("filter_tags", "string_list", {label: "Filtered tags"}),
+      makeFieldDef("sort", "enum", {
+        options: SORT_OPTIONS,
+        label: "Filtered sort order",
+      }),
+      makeFieldDef("limit", "number", {
+        integer: true,
+        min: 1,
+        label: "Filtered item count",
+      }),
+      ...seoFieldDefs(),
+    ],
+  },
 ];
 
 function cloneFieldDef(fieldDef) {
@@ -166,6 +221,7 @@ function cloneFieldDef(fieldDef) {
       ...fieldDef.feedMapping,
     },
     options: fieldDef.options ? [...fieldDef.options] : undefined,
+    allowedContentTypes: fieldDef.allowedContentTypes ? [...fieldDef.allowedContentTypes] : undefined,
     valueMap: fieldDef.valueMap ? {...fieldDef.valueMap} : undefined,
   };
 }

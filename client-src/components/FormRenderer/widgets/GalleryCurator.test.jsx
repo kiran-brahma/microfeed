@@ -21,6 +21,11 @@ const PHOTOS = [
   { id: "p3", content_type: "photo", title: "Photo Three", image: "https://cdn.example.com/three.jpg" },
 ];
 
+const MIXED_ITEMS = [
+  { id: "p1", content_type: "photo", title: "Photo One", image: "https://cdn.example.com/one.jpg" },
+  { id: "a1", content_type: "blog_article", title: "Article One" },
+];
+
 beforeEach(() => {
   Requests.axiosGet.mockReset();
   Requests.axiosGet.mockResolvedValue({ data: { items: PHOTOS } });
@@ -43,6 +48,22 @@ describe("GalleryCurator", () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent("Photo One");
     expect(items[1]).toHaveTextContent("Photo Two");
+  });
+
+  test("supports multiple allowed content types via content_type__in", async () => {
+    Requests.axiosGet.mockResolvedValueOnce({ data: { items: MIXED_ITEMS } });
+    const fieldDef = {
+      key: "featured_items",
+      kind: "reference",
+      label: "Featured items",
+      allowedContentTypes: ["photo", "blog_article"],
+    };
+
+    render(<GalleryCurator fieldDef={fieldDef} value={[]} onChange={jest.fn()} error={null} />);
+
+    await waitFor(() => expect(Requests.axiosGet).toHaveBeenCalledWith("/admin/ajax/items?content_type__in=photo,blog_article"));
+    expect(await screen.findByRole("option", { name: "photo: Photo One" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "blog_article: Article One" })).toBeInTheDocument();
   });
 
   test("Move-down on p1 calls onChange([p2, p1])", async () => {

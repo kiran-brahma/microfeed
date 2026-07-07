@@ -13,12 +13,15 @@ function jsonResponse(body, status) {
 export async function onRequestGet({ request, data }) {
   const url = new URL(request.url);
   const contentType = url.searchParams.get('content_type');
+  const contentTypes = url.searchParams.get('content_type__in');
 
   const { feedCrud } = data;
   const queryKwargs = {
     'status__!=': STATUSES.DELETED,
   };
-  if (contentType) {
+  if (contentTypes) {
+    queryKwargs.content_type__in = contentTypes.split(',').map((entry) => entry.trim()).filter(Boolean);
+  } else if (contentType) {
     queryKwargs.content_type = contentType;
   }
 

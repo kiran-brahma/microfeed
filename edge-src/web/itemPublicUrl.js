@@ -14,6 +14,9 @@ const TYPE_PATH_PREFIXES = {
  * Falls back to a root-relative slug path for unknown types.
  */
 export function itemPublicUrl(contentType, slug) {
+  if (contentType === "home_page") {
+    return "/";
+  }
   const prefix = TYPE_PATH_PREFIXES[contentType];
   if (prefix === undefined) {
     return `/${slug}`;

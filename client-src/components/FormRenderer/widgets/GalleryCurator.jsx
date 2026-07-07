@@ -5,6 +5,24 @@ function fieldLabel(fieldDef) {
   return fieldDef.label || fieldDef.key;
 }
 
+function allowedContentTypesFor(fieldDef) {
+  return Array.isArray(fieldDef?.allowedContentTypes) && fieldDef.allowedContentTypes.length > 0
+    ? fieldDef.allowedContentTypes
+    : ["photo"];
+}
+
+function buildItemsQuery(fieldDef) {
+  const allowedContentTypes = allowedContentTypesFor(fieldDef);
+  if (allowedContentTypes.length === 1) {
+    return `content_type=${allowedContentTypes[0]}`;
+  }
+  return `content_type__in=${allowedContentTypes.join(",")}`;
+}
+
+function itemLabel(item) {
+  return item?.title || item?.caption || item?.slug || item?.id || "";
+}
+
 function RequiredLabel({ fieldDef }) {
   return (
     <span>
@@ -22,22 +40,25 @@ function FieldError({ error }) {
 }
 
 export default function GalleryCurator({ fieldDef, value, onChange, error }) {
-  const [photos, setPhotos] = useState([]);
+  const [items, setItems] = useState([]);
+  const allowedContentTypes = allowedContentTypesFor(fieldDef);
+  const query = buildItemsQuery(fieldDef);
 
   useEffect(() => {
-    Requests.axiosGet("/admin/ajax/items?content_type=photo").then((res) => {
+    Requests.axiosGet(`/admin/ajax/items?${query}`).then((res) => {
       const nextItems = (res && res.data && res.data.items) || [];
-      setPhotos(nextItems);
+      setItems(nextItems);
     });
-  }, []);
+  }, [query]);
 
   const memberIds = Array.isArray(value) ? value : [];
-  const photoById = photos.reduce((lookup, photo) => {
-    lookup[photo.id] = photo;
+  const itemById = items.reduce((lookup, item) => {
+    lookup[item.id] = item;
     return lookup;
   }, {});
 
-  const availablePhotos = photos.filter((photo) => !memberIds.includes(photo.id));
+  const availableItems = items.filter((item) => !memberIds.includes(item.id));
+  const addLabel = allowedContentTypes.length === 1 ? allowedContentTypes[0].replace(/_/g, " ") : "item";
 
   function moveUp(index) {
     if (index <= 0) {
@@ -62,12 +83,12 @@ export default function GalleryCurator({ fieldDef, value, onChange, error }) {
     onChange(next);
   }
 
-  function addPhoto(e) {
-    const photoId = e.target.value;
-    if (!photoId) {
+  function addItem(e) {
+    const itemId = e.target.value;
+    if (!itemId) {
       return;
     }
-    onChange([...memberIds, photoId]);
+    onChange([...memberIds, itemId]);
     e.target.value = "";
   }
 
@@ -78,9 +99,9 @@ export default function GalleryCurator({ fieldDef, value, onChange, error }) {
       </div>
       <ul className="flex flex-col gap-2 mb-3">
         {memberIds.map((id, index) => {
-          const photo = photoById[id];
-          const title = photo ? photo.title : id;
-          const image = photo && photo.image;
+          const item = itemById[id];
+          const title = itemLabel(item) || id;
+          const image = item && item.image;
           return (
             <li
               key={id}
@@ -123,15 +144,15 @@ export default function GalleryCurator({ fieldDef, value, onChange, error }) {
       </ul>
       <select
         data-testid="gallery-curator-add-select"
-        aria-label="Add photo"
+        aria-label={`Add ${addLabel}`}
         className="lh-select text-sm"
         value=""
-        onChange={addPhoto}
+        onChange={addItem}
       >
-        <option value="">Add photo…</option>
-        {availablePhotos.map((photo) => (
-          <option key={photo.id} value={photo.id}>
-            {photo.title}
+        <option value="">{`Add ${addLabel}…`}</option>
+        {availableItems.map((item) => (
+          <option key={item.id} value={item.id}>
+            {allowedContentTypes.length > 1 ? `${item.content_type}: ${itemLabel(item)}` : itemLabel(item)}
           </option>
         ))}
       </select>

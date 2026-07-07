@@ -240,4 +240,50 @@ describe("admin items ajax handlers", () => {
       db.close();
     }
   });
+
+  test("GET with ?content_type__in=photo,blog_article returns both types", async () => {
+    const db = createMigratedInMemoryDatabase();
+    const {data} = makeData(db);
+
+    try {
+      const photoResponse = await createItem({
+        request: jsonRequest({
+          content_type: "photo",
+          status: "published",
+          title: "Photo One",
+          image: "https://cdn.example.com/one.jpg",
+        }),
+        data,
+        env: {},
+        params: {},
+      });
+      const {id: photoId} = await photoResponse.json();
+
+      const articleResponse = await createItem({
+        request: jsonRequest({
+          content_type: "blog_article",
+          status: "published",
+          title: "Article One",
+          content_html: "<p>Body</p>",
+        }),
+        data,
+        env: {},
+        params: {},
+      });
+      const {id: articleId} = await articleResponse.json();
+
+      const request = new Request("https://site.test/admin/ajax/items?content_type__in=photo,blog_article", {
+        method: "GET",
+      });
+      const response = await listItems({request, data, env: {}, params: {}});
+      expect(response.status).toBe(200);
+      const body = await response.json();
+
+      expect(body.items).toHaveLength(2);
+      expect(body.items.map((item) => item.id).sort()).toEqual([photoId, articleId].sort());
+      expect(body.items.map((item) => item.content_type).sort()).toEqual(["blog_article", "photo"]);
+    } finally {
+      db.close();
+    }
+  });
 });

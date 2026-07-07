@@ -6,12 +6,16 @@ import TypePicker from "./index";
 import { listTypes } from "../../../../edge-src/registry/ContentTypeRegistry";
 
 describe("TypePicker", () => {
-  test("renders a card/button for every registry content type", () => {
+  test("renders a card/button for every visible registry content type", () => {
     render(<TypePicker onPick={() => {}} />);
 
-    listTypes().forEach((typeDef) => {
-      expect(screen.getByText(new RegExp(typeDef.name.replace(/_/g, "[ _]"), "i"))).toBeInTheDocument();
-    });
+    listTypes()
+      .filter((typeDef) => typeDef.showInTypePicker !== false)
+      .forEach((typeDef) => {
+        expect(screen.getByText(new RegExp(typeDef.name.replace(/_/g, "[ _]"), "i"))).toBeInTheDocument();
+      });
+
+    expect(screen.queryByTestId("type-picker-card-home_page")).not.toBeInTheDocument();
   });
 
   test("clicking a type card calls onPick with that type's name", async () => {

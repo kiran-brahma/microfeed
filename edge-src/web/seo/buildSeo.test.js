@@ -85,6 +85,27 @@ describe("siteSeo", () => {
     expect(seo.jsonLd.publisher["@type"]).toBe("Organization");
     expect(seo.jsonLd.publisher.name).toBe("My Test Feed");
   });
+
+  test("homePage overrides description, image, and noindex when present", () => {
+    const seo = siteSeo({
+      channel: CHANNEL,
+      homePage: {
+        title: "Welcome Home",
+        content_html: "<p>Home body</p>",
+        image: "https://cdn.example.com/home.png",
+        share_image: "https://cdn.example.com/home-share.png",
+        status: "unlisted",
+      },
+      seoSettings: {},
+      canonicalUrl: "https://example.com/",
+    });
+
+    expect(seo.title).toBe("My Test Feed");
+    expect(seo.description).toBe("Home body");
+    expect(seo.image).toBe("https://cdn.example.com/home-share.png");
+    expect(seo.noindex).toBe(true);
+    expect(seo.jsonLd.name).toBe("My Test Feed");
+  });
 });
 
 describe("recordSeo", () => {

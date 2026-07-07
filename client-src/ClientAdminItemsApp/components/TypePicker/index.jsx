@@ -10,6 +10,12 @@ export function friendlyLabel(typeName) {
 }
 
 function TypeCard({ typeDef, onPick }) {
+  const typeLabel = typeDef.family === "aggregator"
+    ? "Aggregator"
+    : typeDef.family === "page"
+      ? "Page"
+      : "Record";
+
   return (
     <button
       type="button"
@@ -22,10 +28,10 @@ function TypeCard({ typeDef, onPick }) {
           window.location.href = `${ADMIN_URLS.newItem()}?type=${typeDef.name}`;
         }
       }}
-    >
+      >
       <div className="text-lg font-semibold">{friendlyLabel(typeDef.name)}</div>
       <div className="text-xs text-muted-color mt-1">
-        {typeDef.family === "aggregator" ? "Aggregator" : "Record"}
+        {typeLabel}
       </div>
     </button>
   );
@@ -33,8 +39,9 @@ function TypeCard({ typeDef, onPick }) {
 
 export default function TypePicker({ onPick }) {
   const types = listTypes();
-  const records = types.filter((typeDef) => typeDef.family !== "aggregator");
-  const aggregators = types.filter((typeDef) => typeDef.family === "aggregator");
+  const visibleTypes = types.filter((typeDef) => typeDef.showInTypePicker !== false);
+  const records = visibleTypes.filter((typeDef) => typeDef.family !== "aggregator");
+  const aggregators = visibleTypes.filter((typeDef) => typeDef.family === "aggregator");
 
   return (
     <div className="flex flex-col gap-8">
