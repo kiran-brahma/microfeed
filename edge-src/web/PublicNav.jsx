@@ -7,14 +7,17 @@ import React from "react";
 // so the "which types have content" logic isn't duplicated per route.
 export default function PublicNav({channel = {}, navTypes = []}) {
   const title = channel.title || "";
+  // Always show a visible brand/home link, even before a channel title or logo
+  // is configured, so the nav bar is never rendered empty/invisible.
+  const brandText = title || "Home";
 
   return (
     <nav className="public-nav">
       <a className="public-nav__brand" href="/">
         {channel.image ? (
-          <img className="public-nav__logo" src={channel.image} alt={title} />
+          <img className="public-nav__logo" src={channel.image} alt={brandText} />
         ) : (
-          <span className="public-nav__brand-text">{title}</span>
+          <span className="public-nav__brand-text">{brandText}</span>
         )}
       </a>
       {navTypes.length > 0 && (
