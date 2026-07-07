@@ -1,6 +1,6 @@
 import {getFieldDefs, getRssKind, getType, isAggregator, listTypes} from "./ContentTypeRegistry";
 
-const SEO_TYPES = ["podcast_episode", "blog_article", "photo", "gallery", "landing_page"];
+const SEO_TYPES = ["podcast_episode", "blog_article", "photo", "gallery", "landing_page", "home_page"];
 
 const SEO_FIELD_EXPECTATIONS = [
   {key: "seo_title", kind: "text", target: "seoTitle", source: "seoTitle"},
@@ -10,13 +10,14 @@ const SEO_FIELD_EXPECTATIONS = [
 ];
 
 describe("ContentTypeRegistry", () => {
-  test("declares the five built-in types", () => {
+  test("declares the built-in types", () => {
     expect(listTypes().map((type) => type.name)).toEqual([
       "podcast_episode",
       "blog_article",
       "photo",
       "gallery",
       "landing_page",
+      "home_page",
     ]);
   });
 
@@ -137,6 +138,50 @@ describe("ContentTypeRegistry", () => {
     expect(
       getFieldDefs("landing_page").some((field) => field.kind === "tags" || field.kind === "reference"),
     ).toBe(false);
+
+    expect(getType("home_page")).toMatchObject({
+      name: "home_page",
+      family: "page",
+      singleton: true,
+      slugEditable: false,
+      showInTypePicker: false,
+    });
+
+    expect(getFieldDefs("home_page").map((field) => field.key)).toEqual([
+      "status",
+      "title",
+      "content_html",
+      "image",
+      "show_channel_title",
+      "show_channel_description",
+      "show_channel_image",
+      "recent_content_types",
+      "recent_limit",
+      "recent_show_date",
+      "recent_show_excerpt",
+      "recent_show_badge",
+      "featured_title",
+      "featured_items",
+      "filtered_title",
+      "content_types",
+      "filter_tags",
+      "sort",
+      "limit",
+      "seo_title",
+      "seo_description",
+      "share_image",
+      "noindex",
+    ]);
+
+    expect(getFieldDefs("home_page").find((field) => field.key === "featured_items")).toMatchObject({
+      kind: "reference",
+      allowedContentTypes: ["podcast_episode", "blog_article", "photo"],
+    });
+
+    expect(getFieldDefs("home_page").find((field) => field.key === "recent_content_types")).toMatchObject({
+      kind: "enum",
+      multiple: true,
+    });
   });
 
   test("throws for unknown types", () => {

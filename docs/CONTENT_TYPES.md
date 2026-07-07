@@ -12,7 +12,7 @@
 - **rss** = optional per-type RSS flavor exposed by the registry (`getRssKind(typeName)` → `"itunes" | "basic" | null`), consumed by `FeedPublicRssBuilder`:
   - `podcast_episode` → `"itunes"` — full iTunes-tagged RSS 2.0 item (`itunes:*`, `<enclosure>`).
   - `blog_article` → `"basic"` — plain RSS 2.0 item (title/link/description/guid/pubDate only, no iTunes tags, no enclosure).
-  - `photo`, `gallery`, `landing_page` → no `rss` key → `getRssKind` returns `null` → excluded from RSS entirely.
+  - `photo`, `gallery`, `landing_page`, `home_page` → no `rss` key → `getRssKind` returns `null` → excluded from RSS entirely.
 
 ## podcast_episode (record) — feeds: JSON + iTunes RSS + web `/i/[slug]`
 | key | kind | required | target |
@@ -78,6 +78,35 @@
 | layout | enum(list,grid) | – | layout |
 
 > `filter_tags` is a plain string list (kind `string_list`), not the relational `tags` field kind — it's filter *config* stored in the item's own `data` blob, not a tag link on the landing page item itself. This keeps `landing_page` free of any `tags`/`reference` field kind, so `ContentService` never creates relational side effects (item_tags/item_relations rows) for it.
+
+## home_page (singleton page) — feeds: web `/` + JSON
+| key | kind | required | target |
+|---|---|---|---|
+| status | enum | – | status |
+| title | text | ✅ | title |
+| content_html | richtext | – | description (hero) |
+| image | image | – | image |
+| show_channel_title | boolean | – | show_channel_title |
+| show_channel_description | boolean | – | show_channel_description |
+| show_channel_image | boolean | – | show_channel_image |
+| recent_content_types | enum(multiple; podcast_episode,blog_article,photo) | – | recent_content_types |
+| recent_limit | number(int,≥1) | – | recent_limit |
+| recent_show_date | boolean | – | recent_show_date |
+| recent_show_excerpt | boolean | – | recent_show_excerpt |
+| recent_show_badge | boolean | – | recent_show_badge |
+| featured_title | text | – | featured_title |
+| featured_items | reference | – | featured_items |
+| filtered_title | text | – | filtered_title |
+| content_types | enum(multiple; podcast_episode,blog_article,photo) | – | content_types |
+| filter_tags | string_list | – | filter_tags |
+| sort | enum(newest_first,oldest_first) | – | sort |
+| limit | number(int,≥1) | – | limit |
+| seo_title | text | – | seoTitle |
+| seo_description | text | – | seoDescription |
+| share_image | image | – | shareImage |
+| noindex | boolean | – | noindex |
+
+> `home_page` is a singleton. Its slug is fixed to `/` in the public route and is hidden from the normal authoring slug control.
 
 ## Corrections from the first Phase 2 pass (offline drift)
 - Podcast `url`→**link** and `content_html`→**description** targets (were mapping to `url`/`content_html`).

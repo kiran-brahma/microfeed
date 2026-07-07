@@ -4,7 +4,7 @@ import RelationRepo, {GALLERY_MEMBER} from "./RelationRepo";
 import {STATUSES} from "../../common-src/Constants";
 import {randomShortUUID} from "../../common-src/StringUtils";
 import {msToRFC3339, rfc3399ToMs} from "../../common-src/TimeUtils";
-import {getFieldDefs} from "../registry/ContentTypeRegistry";
+import {getFieldDefs, getType} from "../registry/ContentTypeRegistry";
 import {mapItem, validateItem} from "../registry/itemMapper";
 import {toPublic} from "../registry/fieldKinds";
 
@@ -202,11 +202,14 @@ export default class ContentService extends FeedCrudManager {
     this.relationRepo = new RelationRepo(this.itemRepo.db);
   }
 
-  async _validateMembersArePhotos(childIds) {
+  async _validateReferenceItems(fieldDef, childIds) {
     if (!childIds || childIds.length === 0) {
       return {errors: []};
     }
 
+    const allowedContentTypes = Array.isArray(fieldDef?.allowedContentTypes) && fieldDef.allowedContentTypes.length > 0
+      ? fieldDef.allowedContentTypes
+      : ["photo"];
     const response = await this.itemRepo.list({
       queryKwargs: {
         id__in: childIds,
@@ -216,13 +219,13 @@ export default class ContentService extends FeedCrudManager {
 
     const invalidIds = childIds.filter((childId) => {
       const row = rowsById.get(childId);
-      return !row || row.content_type !== "photo";
+      return !row || !allowedContentTypes.includes(row.content_type);
     });
 
     if (invalidIds.length > 0) {
       return validationError(
-        "members",
-        `Members must reference existing photo items: ${invalidIds.join(", ")}`,
+        fieldDef?.key || "reference",
+        `${fieldDef?.label || fieldDef?.key || "Items"} must reference existing ${allowedContentTypes.join(", ")} items: ${invalidIds.join(", ")}`,
       );
     }
 
@@ -231,6 +234,24 @@ export default class ContentService extends FeedCrudManager {
 
   async create(typeName, payload = {}) {
     const inputPayload = payload || {};
+    let typeDef;
+    try {
+      typeDef = getType(typeName);
+    } catch (error) {
+      return validationError("content_type", error.message);
+    }
+
+    if (typeDef.singleton) {
+      const existingSingleton = await this.itemRepo.getFirst({
+        queryKwargs: {
+          content_type: typeName,
+        },
+      });
+      if (existingSingleton) {
+        return validationError("content_type", `Only one ${typeName} may exist`);
+      }
+    }
+
     let validation;
     try {
       validation = validateItem(typeName, inputPayload);
@@ -248,21 +269,26 @@ export default class ContentService extends FeedCrudManager {
     }
 
     const referenceFieldDef = getReferenceFieldDef(typeName);
+    const isHomePage = typeName === "home_page";
     let memberIds = [];
     if (referenceFieldDef) {
       memberIds = inputPayload[referenceFieldDef.key] || [];
-      const membersValidation = await this._validateMembersArePhotos(memberIds);
+      const membersValidation = await this._validateReferenceItems(referenceFieldDef, memberIds);
       if (membersValidation.errors.length > 0) {
         return membersValidation;
       }
-      deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
+      if (!isHomePage) {
+        deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
+      }
     }
 
     const itemId = inputPayload.id || randomShortUUID();
     // Prefer an explicit, user-defined slug; only fall back to inferring one
     // from the title (then a random id) when none was provided.
     const explicitSlug = normalizeSlugSource(inputPayload.slug);
-    const slug = explicitSlug || normalizeSlugSource(inputPayload.title) || randomShortUUID();
+    const slug = typeDef.singleton
+      ? "home"
+      : explicitSlug || normalizeSlugSource(inputPayload.title) || randomShortUUID();
     const existingWithSlug = await this.itemRepo.getByTypeAndSlug(typeName, slug);
     if (existingWithSlug) {
       return validationError("slug", "Slug already exists for this content type");
@@ -284,7 +310,7 @@ export default class ContentService extends FeedCrudManager {
       await this.tagLinkRepo.setItemTags(itemId, tagIds);
     }
 
-    if (referenceFieldDef) {
+    if (referenceFieldDef && !isHomePage) {
       await this.relationRepo.setMembers(itemId, memberIds, GALLERY_MEMBER);
     }
 
@@ -303,6 +329,13 @@ export default class ContentService extends FeedCrudManager {
       return validationError("content_type", "Item content type is missing");
     }
 
+    let typeDef;
+    try {
+      typeDef = getType(typeName);
+    } catch (error) {
+      return validationError("content_type", error.message);
+    }
+
     let existingPublicItem;
     try {
       existingPublicItem = rowToPublicItem(typeName, existingRow);
@@ -317,7 +350,8 @@ export default class ContentService extends FeedCrudManager {
     }
 
     const referenceFieldDef = getReferenceFieldDef(typeName);
-    if (referenceFieldDef) {
+    const isHomePage = typeName === "home_page";
+    if (referenceFieldDef && !isHomePage) {
       const existingMemberIds = await this.relationRepo.getMemberIds(itemId, GALLERY_MEMBER);
       setByPath(existingPublicItem, referenceFieldDef.feedMapping.source, existingMemberIds);
     }
@@ -326,7 +360,7 @@ export default class ContentService extends FeedCrudManager {
 
     if (referenceFieldDef) {
       const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
-      const membersValidation = await this._validateMembersArePhotos(mergedMemberIds);
+      const membersValidation = await this._validateReferenceItems(referenceFieldDef, mergedMemberIds);
       if (membersValidation.errors.length > 0) {
         return membersValidation;
       }
@@ -347,7 +381,7 @@ export default class ContentService extends FeedCrudManager {
     if (tagsFieldDef) {
       deleteByPath(internalItem, tagsFieldDef.feedMapping.target);
     }
-    if (referenceFieldDef) {
+    if (referenceFieldDef && !isHomePage) {
       deleteByPath(internalItem, referenceFieldDef.feedMapping.target);
     }
 
@@ -356,7 +390,9 @@ export default class ContentService extends FeedCrudManager {
     // and break the item's url). Only brand-new items with neither fall back
     // to inferring from the title.
     const explicitSlug = normalizeSlugSource(inputPayload.slug);
-    const slug = explicitSlug || existingRow.slug || normalizeSlugSource(mergedPublicItem.title) || randomShortUUID();
+    const slug = typeDef.singleton
+      ? "home"
+      : explicitSlug || existingRow.slug || normalizeSlugSource(mergedPublicItem.title) || randomShortUUID();
     const existingWithSlug = await this.itemRepo.getByTypeAndSlug(typeName, slug);
     if (existingWithSlug && existingWithSlug.id !== itemId) {
       return validationError("slug", "Slug already exists for this content type");
@@ -378,7 +414,7 @@ export default class ContentService extends FeedCrudManager {
       await this.tagLinkRepo.setItemTags(itemId, mergedTagIds);
     }
 
-    if (referenceFieldDef) {
+    if (referenceFieldDef && !isHomePage) {
       const mergedMemberIds = getByPath(mergedPublicItem, referenceFieldDef.feedMapping.source) || [];
       await this.relationRepo.setMembers(itemId, mergedMemberIds, GALLERY_MEMBER);
     }
@@ -392,6 +428,11 @@ export default class ContentService extends FeedCrudManager {
       return validationError("id", "Item not found");
     }
 
+    const typeDef = getType(existingRow.content_type);
+    if (typeDef.singleton) {
+      return validationError("id", "Singleton items cannot be deleted");
+    }
+
     await this.itemRepo.update(itemId, {status: STATUSES.DELETED});
 
     return itemId;
@@ -401,6 +442,11 @@ export default class ContentService extends FeedCrudManager {
     const existingRow = await this.itemRepo.getById(itemId);
     if (!existingRow) {
       return validationError("id", "Item not found");
+    }
+
+    const typeDef = getType(existingRow.content_type);
+    if (typeDef.singleton) {
+      return validationError("id", "Singleton items cannot be purged");
     }
 
     if (existingRow.status !== STATUSES.DELETED && !force) {

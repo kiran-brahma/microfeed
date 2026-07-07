@@ -2,6 +2,7 @@ const {createMigratedInMemoryDatabase} = require("../../test-utils/d1-substitute
 import ContentService from "../models/ContentService";
 import ItemRepo from "../models/ItemRepo";
 import FeedDb from "../models/FeedDb";
+import TagService from "../models/TagService";
 
 import {onRequestGet as getGallery} from "../../functions/gallery/[slug]/index.jsx";
 import {onRequestGet as getLanding} from "../../functions/[slug]/index.jsx";
@@ -19,12 +20,14 @@ function makeContentService(db) {
   };
 }
 
-async function setChannelTitle(db, request, title) {
+async function setChannelTitle(db, request, title, description = null, image = null) {
   const feedDb = new FeedDb({FEED_DB: db}, request);
   const content = await feedDb.getContent();
   await feedDb._putChannelToContent({
     ...content.channel,
     title,
+    ...(description !== null ? {description} : {}),
+    ...(image !== null ? {image} : {}),
   });
 }
 
@@ -97,6 +100,15 @@ async function createLandingPage(service, itemRepo, title, extra = {}) {
   });
   const slug = title.toLowerCase().replace(/\s+/g, "-");
   return itemRepo.getByTypeAndSlug("landing_page", slug);
+}
+
+async function createHomePage(service, itemRepo, title, extra = {}) {
+  await service.create("home_page", {
+    status: "published",
+    title,
+    ...extra,
+  });
+  return itemRepo.getByTypeAndSlug("home_page", "home");
 }
 
 describe("aggregator + home web pages", () => {
@@ -213,6 +225,74 @@ describe("aggregator + home web pages", () => {
       expect(html).toContain("Photo One");
       expect(html).toContain("/photo/photo-one");
       expect(html).not.toContain("Hidden Article");
+    } finally {
+      db.close();
+    }
+  });
+
+  test("home page singleton renders hero, channel toggles, and recent/featured/filtered blocks", async () => {
+    const db = createMigratedInMemoryDatabase();
+    try {
+      const {itemRepo, service} = makeContentService(db);
+      const tagService = new TagService(db);
+      const request = new Request("https://site.test/");
+      await setChannelTitle(db, request, "My Test Feed", "A feed about testing", "https://cdn.example.com/channel.png");
+
+      const featuredTag = await tagService.create({name: "Featured"});
+      await createBlogArticle(service, itemRepo, "Featured Story", {
+        tags: [featuredTag.id],
+        date_published_ms: Date.UTC(2024, 0, 1),
+      });
+      await createBlogArticle(service, itemRepo, "Filtered Story", {
+        tags: [featuredTag.id],
+        date_published_ms: Date.UTC(2024, 0, 2),
+      });
+      const featuredStory = await itemRepo.getByTypeAndSlug("blog_article", "featured-story");
+
+      await service.create("photo", {
+        status: "published",
+        title: "Recent Photo",
+        image: "https://cdn.example.com/images/recent-photo.png",
+        taken_date: Date.UTC(2024, 0, 3),
+      });
+
+      await createHomePage(service, itemRepo, "Welcome Home", {
+        content_html: "<p>Hero body</p>",
+        image: "https://cdn.example.com/home.png",
+        show_channel_title: true,
+        show_channel_description: true,
+        show_channel_image: true,
+        recent_content_types: ["photo", "blog_article"],
+        recent_limit: 1,
+        recent_show_date: true,
+        recent_show_excerpt: false,
+        recent_show_badge: false,
+        featured_title: "Featured picks",
+        featured_items: [featuredStory.id],
+        filtered_title: "Tagged picks",
+        content_types: ["blog_article"],
+        filter_tags: [featuredTag.id],
+        sort: "newest_first",
+        limit: 1,
+      });
+
+      const response = await getHome({params: {}, env: makeEnv(db), request});
+      expect(response.status).toBe(200);
+      const html = await response.text();
+
+      expect(html).toContain("Welcome Home");
+      expect(html).toContain("Hero body");
+      expect(html).toContain("/home.png");
+      expect(html).toContain("My Test Feed");
+      expect(html).toContain("A feed about testing");
+      expect(html).toContain("/channel.png");
+      expect(html).toContain("Recent Photo");
+      expect(html).toContain("Featured picks");
+      expect(html).toContain("Featured Story");
+      expect(html).toContain("Tagged picks");
+      expect(html).toContain("Filtered Story");
+      expect(html).not.toContain("No recent items yet.");
+      expect(html).not.toContain("Related content");
     } finally {
       db.close();
     }

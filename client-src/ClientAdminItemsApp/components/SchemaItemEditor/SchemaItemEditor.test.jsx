@@ -122,4 +122,33 @@ describe("SchemaItemEditor", () => {
 
     expect(screen.queryByText(/no items match/i)).not.toBeInTheDocument();
   });
+
+  test("home_page hides the slug editor and submits without slug", async () => {
+    const user = userEvent.setup();
+    Requests.axiosPut.mockResolvedValue({ status: 200, data: { id: "home-1" } });
+
+    render(
+      <SchemaItemEditor
+        contentType="home_page"
+        item={{
+          id: "home-1",
+          content_type: "home_page",
+          slug: "home",
+          title: "Home",
+          content_html: "<p>Welcome</p>",
+        }}
+        publicBucketUrl="https://cdn.example.com"
+      />
+    );
+
+    expect(screen.queryByText(/url slug/i)).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("home")).not.toBeInTheDocument();
+
+    const saveButton = screen.getByRole("button", { name: /save|update/i });
+    await user.click(saveButton);
+
+    await waitFor(() => expect(Requests.axiosPut).toHaveBeenCalled());
+    const [, payload] = Requests.axiosPut.mock.calls[0];
+    expect(payload).not.toHaveProperty("slug");
+  });
 });

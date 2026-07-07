@@ -96,4 +96,26 @@ describe("ItemCard", () => {
     expect(screen.getByText("No Image Post")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  test("can hide the badge and excerpt while showing the date meta", () => {
+    render(
+      <ItemCard
+        item={{
+          content_type: "blog_article",
+          slug: "dated-post",
+          title: "Dated Post",
+          excerpt: "A short teaser",
+          date_published_ms: Date.UTC(2024, 0, 1),
+        }}
+        showDate
+        showExcerpt={false}
+        showBadge={false}
+      />,
+    );
+
+    expect(screen.getByText("Dated Post")).toBeInTheDocument();
+    expect(screen.queryByText("Blog")).not.toBeInTheDocument();
+    expect(screen.queryByText("A short teaser")).not.toBeInTheDocument();
+    expect(screen.getByText(/2024/)).toBeInTheDocument();
+  });
 });

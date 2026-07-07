@@ -4,7 +4,7 @@ import AdminInput from "../../../components/AdminInput";
 import { mediaWidgets, tagsWidget, referenceWidget } from "../../../components/FormRenderer/widgets";
 import FilterTagsWidget from "../../../components/FormRenderer/widgets/FilterTagsWidget";
 import LandingPreview from "../LandingPreview";
-import { getFieldDefs } from "../../../../edge-src/registry/ContentTypeRegistry";
+import { getFieldDefs, getType } from "../../../../edge-src/registry/ContentTypeRegistry";
 import Requests from "../../../common/requests";
 import { showToast } from "../../../common/ToastUtils";
 import { ADMIN_URLS, toSlug } from "../../../../common-src/StringUtils";
@@ -36,12 +36,14 @@ export default class SchemaItemEditor extends React.Component {
     this.onSave = this.onSave.bind(this);
 
     const { contentType, item } = props;
+    const typeDef = getType(contentType);
+    const slugEditable = typeDef.slugEditable !== false;
     this.state = {
       // Seed the schema fields plus the system-level slug (edited separately
       // from the content-type fields, so the user can define the url).
       payload: {
         ...seedPayload(contentType, item),
-        ...(item && item.slug ? { slug: item.slug } : {}),
+        ...(slugEditable && item && item.slug ? { slug: item.slug } : {}),
       },
       errors: [],
       submitStatus: null,
@@ -93,6 +95,7 @@ export default class SchemaItemEditor extends React.Component {
     const submitting = submitStatus === SUBMIT_STATUS__START;
     const fieldDefs = getFieldDefs(contentType);
     const isLandingPage = contentType === "landing_page";
+    const slugEditable = getType(contentType).slugEditable !== false;
     const slugError = errors.find((err) => err.field === "slug");
 
     return (
@@ -119,24 +122,26 @@ export default class SchemaItemEditor extends React.Component {
         </div>
         <div className="col-span-3">
           <div className="sticky top-8 grid grid-cols-1 gap-4">
-            <div className="lh-page-card">
-              <AdminInput
-                label="URL slug"
-                value={payload.slug || ''}
-                placeholder={toSlug(payload.title) || 'auto-generated'}
-                onChange={(e) => this.setState({ payload: { ...payload, slug: e.target.value } })}
-              />
-              <div className="text-xs text-gray-400 mt-1">
-                {(() => {
-                  const finalSlug = toSlug(payload.slug) || toSlug(payload.title) || '(auto)';
-                  return <span>URL: <span className="text-gray-600 font-mono">/{finalSlug}</span></span>;
-                })()}
+            {slugEditable && (
+              <div className="lh-page-card">
+                <AdminInput
+                  label="URL slug"
+                  value={payload.slug || ''}
+                  placeholder={toSlug(payload.title) || 'auto-generated'}
+                  onChange={(e) => this.setState({ payload: { ...payload, slug: e.target.value } })}
+                />
+                <div className="text-xs text-gray-400 mt-1">
+                  {(() => {
+                    const finalSlug = toSlug(payload.slug) || toSlug(payload.title) || '(auto)';
+                    return <span>URL: <span className="text-gray-600 font-mono">/{finalSlug}</span></span>;
+                  })()}
+                </div>
+                <div className="text-[11px] text-gray-400 mt-1">
+                  Leave blank to generate from the title. On edit, the slug stays fixed unless you change it here.
+                </div>
+                {slugError && <div className="text-xs text-red-500 mt-2">{slugError.message}</div>}
               </div>
-              <div className="text-[11px] text-gray-400 mt-1">
-                Leave blank to generate from the title. On edit, the slug stays fixed unless you change it here.
-              </div>
-              {slugError && <div className="text-xs text-red-500 mt-2">{slugError.message}</div>}
-            </div>
+            )}
             <div className="lh-page-card text-center">
               <button
                 type="submit"
