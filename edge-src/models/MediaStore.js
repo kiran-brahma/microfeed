@@ -49,13 +49,22 @@ export class MediaStore {
    * {key, size, lastModified} where `key` is the full object key (which,
    * matching how uploads are stored, already includes the project/env prefix
    * and equals the internal media url).
+   *
+   * Covers BOTH storage prefixes uploads land in — `images/` (cover images)
+   * and `media/` (rich-editor images live under `media/rich-editor/…`) — then
+   * filters to image file extensions so audio/video/document enclosures under
+   * `media/` are excluded.
    */
   async listObjects() {
     const {env} = this;
     const accessKeyId = `${env.R2_ACCESS_KEY_ID}`;
     const secretAccessKey = `${env.R2_SECRET_ACCESS_KEY}`;
     const bucket = env.R2_PUBLIC_BUCKET;
-    const prefix = `${projectPrefix(env)}/images/`;
+    const prefixes = [
+      `${projectPrefix(env)}/images/`,
+      `${projectPrefix(env)}/media/`,
+    ];
+    const imageExt = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i;
 
     const aws = new AwsClient({
       accessKeyId,
@@ -66,36 +75,41 @@ export class MediaStore {
 
     const parser = new XMLParser();
     const objects = [];
-    let continuationToken = null;
 
-    // Paginate through ListObjectsV2 results.
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      let endpoint = `https://${bucket}.${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/?list-type=2&prefix=${encodeURIComponent(prefix)}`;
-      if (continuationToken) {
-        endpoint += `&continuation-token=${encodeURIComponent(continuationToken)}`;
-      }
+    for (const prefix of prefixes) {
+      let continuationToken = null;
+      // Paginate through ListObjectsV2 results.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let endpoint = `https://${bucket}.${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/?list-type=2&prefix=${encodeURIComponent(prefix)}`;
+        if (continuationToken) {
+          endpoint += `&continuation-token=${encodeURIComponent(continuationToken)}`;
+        }
 
-      const response = await aws.fetch(new Request(endpoint, {method: "GET"}));
-      const xmlText = await response.text();
-      const parsed = parser.parse(xmlText);
-      const result = parsed && parsed.ListBucketResult ? parsed.ListBucketResult : {};
+        const response = await aws.fetch(new Request(endpoint, {method: "GET"}));
+        const xmlText = await response.text();
+        const parsed = parser.parse(xmlText);
+        const result = parsed && parsed.ListBucketResult ? parsed.ListBucketResult : {};
 
-      const contents = result.Contents;
-      const list = Array.isArray(contents) ? contents : (contents ? [contents] : []);
-      list.forEach((entry) => {
-        objects.push({
-          key: entry.Key,
-          size: typeof entry.Size === "number" ? entry.Size : parseInt(entry.Size, 10) || 0,
-          lastModified: entry.LastModified || null,
+        const contents = result.Contents;
+        const list = Array.isArray(contents) ? contents : (contents ? [contents] : []);
+        list.forEach((entry) => {
+          if (!entry.Key || !imageExt.test(entry.Key)) {
+            return;
+          }
+          objects.push({
+            key: entry.Key,
+            size: typeof entry.Size === "number" ? entry.Size : parseInt(entry.Size, 10) || 0,
+            lastModified: entry.LastModified || null,
+          });
         });
-      });
 
-      const isTruncated = result.IsTruncated === true || result.IsTruncated === "true";
-      if (isTruncated && result.NextContinuationToken) {
-        continuationToken = result.NextContinuationToken;
-      } else {
-        break;
+        const isTruncated = result.IsTruncated === true || result.IsTruncated === "true";
+        if (isTruncated && result.NextContinuationToken) {
+          continuationToken = result.NextContinuationToken;
+        } else {
+          break;
+        }
       }
     }
 

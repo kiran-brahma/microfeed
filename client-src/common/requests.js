@@ -40,14 +40,14 @@ function readArrayBuffer(file) {
 
 // Register a stored object in the media inventory (best-effort; never blocks
 // the upload result on failure).
-function registerMedia({key, url, hash, size, contentType}) {
+function registerMedia({key, url, hash, size, contentType, originalFilename}) {
   return axiosPost('/admin/ajax/media/register', {
-    key, url, hash, size, contentType,
+    key, url, hash, size, contentType, originalFilename,
   }).catch(() => {});
 }
 
 function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2OpsFailure) {
-  const { size, type } = file;
+  const { size, type, name } = file;
   readArrayBuffer(file).then(async (arrayBuffer) => {
     if (!arrayBuffer) {
       return;
@@ -90,7 +90,7 @@ function uploadFile(file, cdnFilename, onProgress, onUploaded, onFailure, onR2Op
           // key === url === the internal, project/env-prefixed object key, so
           // it lines up with reconcileFromR2 (which keys rows by the full R2
           // object key) and dedup stays consistent across both paths.
-          registerMedia({key: mediaUrl, url: mediaUrl, hash, size, contentType: type})
+          registerMedia({key: mediaUrl, url: mediaUrl, hash, size, contentType: type, originalFilename: name})
             .then(() => onUploaded(mediaUrl, arrayBuffer));
         }
       });

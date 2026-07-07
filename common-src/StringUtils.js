@@ -250,7 +250,33 @@ export const ADMIN_URLS = {
   ajaxMediaDelete: () => `${ADMIN_HOME}/ajax/media/delete`,
   ajaxMediaCheckHash: () => `${ADMIN_HOME}/ajax/media/check-hash`,
   ajaxMediaRegister: () => `${ADMIN_HOME}/ajax/media/register`,
+  ajaxMediaUpdate: () => `${ADMIN_HOME}/ajax/media/update`,
 };
+
+/**
+ * Turn an arbitrary string into a url-friendly slug. Falls back to a manual
+ * normalization when slugify yields nothing (non-English input). Returns '' for
+ * empty/falsey input.
+ */
+export function toSlug(str, locale = 'en') {
+  if (!str) {
+    return '';
+  }
+  let slug = slugify(String(str), {lower: true, strict: true, locale});
+  if (!slug) {
+    slug = String(str)
+      .normalize('NFKD')
+      .toLowerCase()
+      .trim()
+      .replace(/['!"#$%&()*+,\-.\/:;<=>?@\[\]^_`{|}~]/g, '-')
+      .replace(/\s+/g, '-')
+      .replace(/\_/g, '-')
+      .replace(/\-\-+/g, '-')
+      .replace(/^\-+/g, '')
+      .replace(/\-$/g, '');
+  }
+  return slug;
+}
 
 /**
  * Public urls

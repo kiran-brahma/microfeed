@@ -78,6 +78,9 @@ CREATE TABLE IF NOT EXISTS media (
   id VARCHAR(11) PRIMARY KEY,
   r2_key VARCHAR(1024) NOT NULL,
   url VARCHAR(1024) NOT NULL,
+  title VARCHAR(255),
+  slug VARCHAR(255),
+  original_filename VARCHAR(255),
   content_hash VARCHAR(64),
   size INTEGER,
   content_type VARCHAR(100),
@@ -89,5 +92,6 @@ CREATE TABLE IF NOT EXISTS media (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS media_r2_key on media (r2_key);
+CREATE UNIQUE INDEX IF NOT EXISTS media_slug on media (slug);
 CREATE INDEX IF NOT EXISTS media_content_hash on media (content_hash);
 CREATE INDEX IF NOT EXISTS media_created_at on media (created_at);

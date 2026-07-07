@@ -12,10 +12,15 @@ function jsonResponse(body, status) {
 
 export async function onRequestPost({request, env}) {
   const body = await request.json() || {};
-  const {key, url, hash, size, contentType, width, height, originalFilename, title, slug} = body;
+  const {id, title, slug} = body;
+  if (!id) {
+    return jsonResponse({error: 'id is required'}, 400);
+  }
 
   const mediaService = createMediaService(env, env.FEED_DB, createMediaStore(env));
-  const result = await mediaService.registerUpload({hash, key, url, size, contentType, width, height, originalFilename, title, slug});
-
+  const result = await mediaService.updateMeta(id, {title, slug});
+  if (result && result.error) {
+    return jsonResponse(result, 404);
+  }
   return jsonResponse(result, 200);
 }

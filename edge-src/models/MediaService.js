@@ -1,4 +1,15 @@
-import {randomShortUUID} from "../../common-src/StringUtils";
+import {randomShortUUID, toSlug} from "../../common-src/StringUtils";
+
+// Derive a human title from an original filename or an object key (strip the
+// directory + extension, turn separators into spaces).
+function deriveTitle(nameOrKey) {
+  if (!nameOrKey) {
+    return "";
+  }
+  const base = String(nameOrKey).split("/").pop() || "";
+  const noExt = base.replace(/\.[a-z0-9]+$/i, "");
+  return noExt.replace(/[-_]+/g, " ").trim();
+}
 
 /**
  * Orchestrates the media inventory: dedup-aware registration of uploads,
@@ -25,7 +36,7 @@ export default class MediaService {
    * content hash already exists, return that existing row's url (dedup) and
    * do NOT insert a duplicate. Otherwise insert a new row.
    */
-  async registerUpload({hash, key, url, size, contentType, width, height} = {}) {
+  async registerUpload({hash, key, url, size, contentType, width, height, originalFilename, title, slug} = {}) {
     if (hash) {
       const existing = await this.mediaRepo.getByContentHash(hash);
       if (existing) {
@@ -50,10 +61,15 @@ export default class MediaService {
     }
 
     const id = randomShortUUID(11);
+    const finalTitle = (title && title.trim()) || deriveTitle(originalFilename) || deriveTitle(key) || "image";
+    const finalSlug = await this._uniqueSlug(slug || finalTitle);
     await this.mediaRepo.insert({
       id,
       r2_key: key,
       url,
+      title: finalTitle,
+      slug: finalSlug,
+      original_filename: originalFilename || null,
       content_hash: hash || null,
       size: size !== undefined && size !== null ? size : null,
       content_type: contentType || null,
@@ -65,8 +81,44 @@ export default class MediaService {
     return {
       id,
       url,
+      title: finalTitle,
+      slug: finalSlug,
       deduped: false,
     };
+  }
+
+  /**
+   * Produce a media slug that is unique across the inventory. Slugifies the
+   * base, then appends -2, -3, … until no existing row owns it.
+   */
+  async _uniqueSlug(base, ignoreId = null) {
+    const root = toSlug(base) || "image";
+    let candidate = root;
+    let n = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const existing = await this.mediaRepo.getBySlug(candidate);
+      if (!existing || existing.id === ignoreId) {
+        return candidate;
+      }
+      n += 1;
+      candidate = `${root}-${n}`;
+    }
+  }
+
+  /**
+   * Rename a media row: set a new title and (re-slugified, uniqueness-checked)
+   * slug. Returns the updated {id, title, slug}.
+   */
+  async updateMeta(id, {title, slug} = {}) {
+    const row = await this.mediaRepo.getById(id);
+    if (!row) {
+      return {error: "not found"};
+    }
+    const finalTitle = (title && title.trim()) || row.title || deriveTitle(row.original_filename) || "image";
+    const finalSlug = await this._uniqueSlug(slug || finalTitle, id);
+    await this.mediaRepo.update(id, {title: finalTitle, slug: finalSlug});
+    return {id, title: finalTitle, slug: finalSlug};
   }
 
   /**
@@ -89,18 +141,24 @@ export default class MediaService {
         continue;
       }
       const id = randomShortUUID(11);
+      const filename = String(obj.key).split("/").pop() || "";
+      const title = deriveTitle(obj.key) || "image";
+      const slug = await this._uniqueSlug(title);
       await this.mediaRepo.insert({
         id,
         r2_key: obj.key,
         // The internal url equals the r2 key (both include the project/env prefix).
         url: obj.key,
+        title,
+        slug,
+        original_filename: filename,
         // No file bytes from a list call, so content hash is unknown.
         content_hash: null,
         size: obj.size !== undefined && obj.size !== null ? obj.size : null,
         content_type: null,
         category: "image",
       });
-      added.push({id, r2_key: obj.key, url: obj.key});
+      added.push({id, r2_key: obj.key, url: obj.key, title, slug});
     }
     return {added};
   }

@@ -22,13 +22,17 @@ export default class MediaApp extends React.Component {
       currentPage={NAV_ITEMS.MEDIA}
       onboardingResult={onboardingResult}
     >
-      <div className="lh-page-card m-4">
-        <div className="lh-page-title mb-2">Media manager</div>
-        <div className="text-sm text-muted-color mb-4">
-          All uploaded images. Filter to unused ones and delete them to reclaim storage.
-          Use “Sync with storage” to pull in images uploaded outside this manager.
+      <div className="m-4 lg:m-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Media manager</h1>
+          <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+            All uploaded images. Search and rename them, filter to the unused ones and delete
+            them to reclaim storage, or “Sync with storage” to pull in images uploaded outside this manager.
+          </p>
         </div>
-        <MediaLibrary manageMode />
+        <div className="bg-white border border-gray-200 rounded-lg p-4 lg:p-6">
+          <MediaLibrary manageMode />
+        </div>
       </div>
     </AdminNavApp>);
   }

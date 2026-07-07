@@ -213,4 +213,91 @@ describe("MediaService", () => {
       }
     });
   });
+
+  describe("title + slug metadata", () => {
+    test("derives a title and unique slug from the original filename on register", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaRepo} = makeService(db);
+      try {
+        const a = await service.registerUpload({
+          hash: "h1",
+          key: "proj/prod/images/item-1.png",
+          url: "proj/prod/images/item-1.png",
+          originalFilename: "My Sunset Photo.png",
+        });
+        expect(a.title).toBe("My Sunset Photo");
+        expect(a.slug).toBe("my-sunset-photo");
+
+        // A second upload with the same original name gets a de-duplicated slug.
+        const b = await service.registerUpload({
+          hash: "h2",
+          key: "proj/prod/images/item-2.png",
+          url: "proj/prod/images/item-2.png",
+          originalFilename: "My Sunset Photo.png",
+        });
+        expect(b.slug).toBe("my-sunset-photo-2");
+
+        const rowA = await mediaRepo.getById(a.id);
+        expect(rowA.original_filename).toBe("My Sunset Photo.png");
+      } finally {
+        db.close();
+      }
+    });
+
+    test("updateMeta renames title and re-slugs, keeping slugs unique", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service, mediaRepo} = makeService(db);
+      try {
+        const a = await service.registerUpload({hash: "h1", key: "k/a.png", url: "k/a.png", originalFilename: "a.png"});
+        await service.registerUpload({hash: "h2", key: "k/b.png", url: "k/b.png", originalFilename: "b.png"});
+
+        const res = await service.updateMeta(a.id, {title: "Beautiful Beach"});
+        expect(res.title).toBe("Beautiful Beach");
+        expect(res.slug).toBe("beautiful-beach");
+        const row = await mediaRepo.getById(a.id);
+        expect(row.title).toBe("Beautiful Beach");
+        expect(row.slug).toBe("beautiful-beach");
+
+        // Renaming to collide with an existing slug appends a suffix.
+        const res2 = await service.updateMeta(a.id, {title: "b"});
+        expect(res2.slug).toBe("b-2");
+      } finally {
+        db.close();
+      }
+    });
+
+    test("updateMeta returns an error for an unknown id", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const {service} = makeService(db);
+      try {
+        const res = await service.updateMeta("nope", {title: "x"});
+        expect(res.error).toBe("not found");
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("reconcileFromR2 metadata", () => {
+    test("derives title, slug and original_filename for backfilled objects", async () => {
+      const db = createMigratedInMemoryDatabase();
+      const store = {
+        deleteObject: jest.fn().mockResolvedValue(undefined),
+        listObjects: jest.fn().mockResolvedValue([
+          {key: "proj/prod/images/mountain-view.jpg", size: 1234},
+        ]),
+      };
+      const {service, mediaRepo} = makeService(db, store);
+      try {
+        const result = await service.reconcileFromR2();
+        expect(result.added).toHaveLength(1);
+        const row = (await mediaRepo.listAll()).results[0];
+        expect(row.title).toBe("mountain view");
+        expect(row.slug).toBe("mountain-view");
+        expect(row.original_filename).toBe("mountain-view.jpg");
+      } finally {
+        db.close();
+      }
+    });
+  });
 });
