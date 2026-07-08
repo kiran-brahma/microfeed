@@ -13,24 +13,26 @@ export default function PublicNav({channel = {}, navTypes = []}) {
 
   return (
     <nav className="public-nav">
-      <a className="public-nav__brand" href="/">
-        {channel.image ? (
-          <span className="public-nav__logo-box">
-            <img className="public-nav__logo" src={channel.image} alt={brandText} />
-          </span>
-        ) : (
-          <span className="public-nav__brand-text">{brandText}</span>
+      <div className="public-nav__inner">
+        <a className="public-nav__brand" href="/">
+          {channel.image ? (
+            <span className="public-nav__logo-box">
+              <img className="public-nav__logo" src={channel.image} alt={brandText} />
+            </span>
+          ) : (
+            <span className="public-nav__brand-text">{brandText}</span>
+          )}
+        </a>
+        {navTypes.length > 0 && (
+          <ul className="public-nav__links">
+            {navTypes.map((entry) => (
+              <li key={entry.name}>
+                <a href={entry.href}>{entry.label}</a>
+              </li>
+            ))}
+          </ul>
         )}
-      </a>
-      {navTypes.length > 0 && (
-        <ul className="public-nav__links">
-          {navTypes.map((entry) => (
-            <li key={entry.name}>
-              <a href={entry.href}>{entry.label}</a>
-            </li>
-          ))}
-        </ul>
-      )}
+      </div>
     </nav>
   );
 }
