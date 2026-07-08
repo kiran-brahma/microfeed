@@ -1,4 +1,4 @@
-import {randomShortUUID, buildAudioUrlWithTracking, removeHostFromUrl} from "./StringUtils";
+import {randomShortUUID, buildAudioUrlWithTracking, removeHostFromUrl, urlJoinWithRelative} from "./StringUtils";
 
 test('randomShortUUID', () => {
   expect(randomShortUUID().length).toBe(11);
@@ -24,6 +24,24 @@ test('buildAudioUrlWithTracking', () => {
 
   trackingUrls = [''];
   expect(buildAudioUrlWithTracking(audioUrl, trackingUrls)).toBe(audioUrl);
+});
+
+test('urlJoinWithRelative', () => {
+  const baseUrl = 'https://media.example.com';
+
+  expect(urlJoinWithRelative(baseUrl, 'production/images/hero.webp'))
+    .toBe('https://media.example.com/production/images/hero.webp');
+  expect(urlJoinWithRelative(baseUrl, '/assets/default/logo.png'))
+    .toBe('/assets/default/logo.png');
+  expect(urlJoinWithRelative('', 'production/images/hero.webp'))
+    .toBe('/production/images/hero.webp');
+
+  // Re-absolutizing a value that's already absolute (e.g. an item field
+  // serialized by serializeItemForFeed, which already prefixed it with
+  // publicBucketUrl) must not double-prefix it.
+  const alreadyAbsolute = 'https://media.example.com/production/images/hero.webp';
+  expect(urlJoinWithRelative(baseUrl, alreadyAbsolute)).toBe(alreadyAbsolute);
+  expect(urlJoinWithRelative('https://other-host.example.com', alreadyAbsolute)).toBe(alreadyAbsolute);
 });
 
 test('removeHostFromUrl', () => {

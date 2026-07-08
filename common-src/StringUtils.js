@@ -131,6 +131,13 @@ export function urlJoinWithRelative(baseUrl, path, baseUrlForRelativePath = '/')
     return null;
   }
 
+  // Already absolute (e.g. re-absolutizing a value that came back from
+  // serializeItemForFeed, which already prefixes image fields with
+  // publicBucketUrl) — don't double-prefix it.
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
   if (path.startsWith('/')) {
     return urlJoin(baseUrlForRelativePath, path);
   }
