@@ -39,7 +39,7 @@ describe("AdminNavApp", () => {
     mockMatchMedia(false);
   });
 
-  it("starts with the admin navigation collapsed and opens it on demand", async () => {
+  it("starts with the admin navigation open on desktop and collapses it on demand", async () => {
     const user = userEvent.setup();
 
     render(
@@ -48,13 +48,13 @@ describe("AdminNavApp", () => {
       </AdminNavApp>
     );
 
-    expect(screen.queryByRole("link", { name: /add new item/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /open navigation/i })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /open navigation/i }));
-
     expect(screen.getByRole("link", { name: /add new item/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /collapse navigation/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /collapse navigation/i }));
+
+    expect(screen.queryByRole("link", { name: /add new item/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open navigation/i })).toBeInTheDocument();
   });
 
   it("uses drawer semantics for the admin navigation on mobile", async () => {

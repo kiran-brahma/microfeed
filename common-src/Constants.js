@@ -162,6 +162,7 @@ export const SUPPORTED_ENCLOSURE_CATEGORIES = [
 export const NAV_ITEMS = {
   ADMIN_HOME: 'admin_home',
   EDIT_CHANNEL: 'edit_channel',
+  HOME_PAGE: 'home_page',
   NEW_ITEM: 'new_item',
   ALL_ITEMS: 'all_items',
   TAGS: 'tags',
@@ -175,6 +176,9 @@ export const NAV_ITEMS_DICT = {
   },
   [NAV_ITEMS.EDIT_CHANNEL]: {
     name: 'Edit channel',
+  },
+  [NAV_ITEMS.HOME_PAGE]: {
+    name: 'Home page',
   },
   [NAV_ITEMS.NEW_ITEM]: {
     name: 'Add new item',
