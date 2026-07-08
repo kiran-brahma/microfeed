@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
   HomeIcon,
+  HomeModernIcon,
   Cog6ToothIcon,
   PlusIcon,
   ListBulletIcon,
@@ -16,6 +17,7 @@ import {ADMIN_URLS, unescapeHtml, urlJoinWithRelative} from "../../../common-src
 import {NAV_ITEMS, NAV_ITEMS_DICT} from "../../../common-src/Constants";
 import {resolveBrand} from "../../../common-src/BrandUtils";
 import AdminDialog from "../AdminDialog";
+import Requests from "../../common/requests";
 
 function readBrandInfoFromFeedContent() {
   const fallback = {
@@ -73,8 +75,18 @@ export default class AdminNavApp extends React.Component {
     super(props);
     this.state = {
       currentPage: props.currentPage || NAV_ITEMS.ADMIN_HOME,
-      navOpen: false,
+      navOpen: !isMobileViewport(),
+      homePageItemId: null,
     };
+  }
+
+  componentDidMount() {
+    Requests.axiosGet('/admin/ajax/items?content_type=home_page').then((res) => {
+      const items = (res && res.data && res.data.items) || [];
+      if (items[0]) {
+        this.setState({homePageItemId: items[0].id});
+      }
+    }).catch(() => {});
   }
 
   toggleNav() {
@@ -86,8 +98,11 @@ export default class AdminNavApp extends React.Component {
   }
 
   renderNavContent() {
-    const {currentPage} = this.state;
+    const {currentPage, homePageItemId} = this.state;
     const onboardingResult = this.props.onboardingResult || {requiredOk: true};
+    const homePageUrl = homePageItemId
+      ? ADMIN_URLS.editItem(homePageItemId)
+      : `${ADMIN_URLS.newItem()}?type=home_page`;
     return (
       <nav className="py-8">
         <NavItem
@@ -103,6 +118,14 @@ export default class AdminNavApp extends React.Component {
           navId={NAV_ITEMS.EDIT_CHANNEL}
           currentId={currentPage}
           Icon={PencilSquareIcon}
+          disabled={!onboardingResult.requiredOk}
+        />
+        <NavItem
+          url={homePageUrl}
+          title={NAV_ITEMS_DICT[NAV_ITEMS.HOME_PAGE].name}
+          navId={NAV_ITEMS.HOME_PAGE}
+          currentId={currentPage}
+          Icon={HomeModernIcon}
           disabled={!onboardingResult.requiredOk}
         />
         <NavItem

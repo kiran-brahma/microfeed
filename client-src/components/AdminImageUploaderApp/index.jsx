@@ -21,16 +21,13 @@ import {showToast} from "../../common/ToastUtils";
 const UPLOAD_STATUS__START = 1;
 const IMAGE_FIELD_FILE_TYPES = getImageFieldAcceptedFileTypes();
 
-function EmptyImage({fileTypes}) {
-  return (<div className="text-brand-light text-sm flex flex-col justify-center items-center h-full">
+function EmptyImage() {
+  return (<div className="text-brand-light text-sm flex flex-col justify-center items-center h-full px-4">
     <div className="mb-2">
       <CloudArrowUpIcon className="w-8" />
     </div>
-    <div className="font-semibold">
+    <div className="font-semibold text-center">
       Click or drag here to upload image
-    </div>
-    <div className="mt-2">
-      {fileTypes.join(',')}
     </div>
   </div>);
 }
@@ -223,7 +220,7 @@ export default class AdminImageUploaderApp extends React.Component {
       >
         <div className="lh-upload-image-size lh-upload-box">
           {absoluteImageUrl ? <PreviewImage url={absoluteImageUrl}/> :
-            <EmptyImage fileTypes={fileTypes} />}
+            <EmptyImage />}
         </div>
       </FileUploader>
       {absoluteImageUrl && <div className="text-sm flex justify-center mt-1">
