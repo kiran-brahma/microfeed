@@ -176,8 +176,10 @@ export default function HomePage({
       >
         <div className="home-hero">
           {channel.image && <img className="home-hero__banner" src={channel.image} alt={channel.title || ""} />}
-          <h1 className="home-hero__title">{channel.title || ""}</h1>
-          {channel.description && <p className="home-hero__description">{channel.description}</p>}
+          <div className="home-hero__copy">
+            <h1 className="home-hero__title">{channel.title || ""}</h1>
+            {channel.description && <p className="home-hero__description">{channel.description}</p>}
+          </div>
         </div>
         <div className="item-feed">
           {renderCards(fallbackItems)}

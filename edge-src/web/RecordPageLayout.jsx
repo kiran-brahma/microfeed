@@ -25,13 +25,17 @@ const INLINE_STYLES = `
     position: sticky;
     top: 0;
     z-index: 10;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .public-nav__inner {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
-    padding: 0.85rem 1.25rem;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e5e5;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0.85rem 1.5rem;
   }
   .public-nav__brand {
     display: flex;
@@ -88,9 +92,22 @@ const INLINE_STYLES = `
     }
   }
   .record-page {
-    max-width: 720px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: 2.5rem 1.25rem 4rem;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  /* Grids (item-feed, home-page sections) use the full 1120px shell above;
+     long-form reading elements are additionally capped to a comfortable
+     line length and left-aligned within that shell (no forced centering,
+     so a listing page's title lines up with its grid below it). */
+  .record-page__cover,
+  .record-page__title,
+  .record-page__meta,
+  .record-page__audio,
+  .record-page__body,
+  .record-page__tags,
+  .record-page__caption {
+    max-width: 760px;
   }
   .record-page__cover {
     width: 100%;
@@ -150,7 +167,8 @@ const INLINE_STYLES = `
   }
   .home-hero {
     display: grid;
-    gap: 1rem;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
     margin-bottom: 0;
     padding: 1.5rem;
     border: 1px solid #e5e5e5;
@@ -167,7 +185,22 @@ const INLINE_STYLES = `
   }
   .home-hero__copy {
     display: grid;
+    align-content: center;
     gap: 0.75rem;
+  }
+  /* Desktop: image left, copy right. Mobile stays stacked (image on top). */
+  @media (min-width: 768px) {
+    .home-hero {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: 2.5rem;
+      padding: 2rem;
+    }
+    .home-hero__banner {
+      max-height: none;
+      height: 100%;
+      aspect-ratio: 4 / 3;
+    }
   }
   .home-hero__title {
     font-size: 2.25rem;
