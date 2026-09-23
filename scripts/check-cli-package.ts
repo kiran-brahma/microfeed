@@ -1,17 +1,60 @@
-import {mkdir, mkdtemp, readFile, readdir, rm, writeFile} from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import {existsSync} from "node:fs";
 import {tmpdir} from "node:os";
+import {createRequire} from "node:module";
 import path from "node:path";
 import {spawnSync} from "node:child_process";
+import {pathToFileURL} from "node:url";
 
 import {x as extractTar} from "tar";
-import {CLI_HELP_TOPICS, renderCliHelp} from "../packages/cli/src/help";
+import {
+  CLI_HELP_TOPICS,
+  GLOBAL_CLI_INVOCATION,
+  NPX_CLI_INVOCATION,
+  renderCliHelp,
+} from "../packages/cli/src/help";
 import {HELP} from "../packages/cli/src/index";
 
-function run(command: string, args: string[], cwd = process.cwd()): string {
+const require = createRequire(import.meta.url);
+const yarnJavaScript = require.resolve("@yarnpkg/cli-dist/bin/yarn.js");
+
+function npmJavaScript(binary: "npm" | "npx"): string {
+  const filename = `${binary}-cli.js`;
+  const searchDirectories = [
+    path.dirname(process.execPath),
+    path.resolve(path.dirname(process.execPath), "..", "lib"),
+    ...(process.env.PATH ?? "").split(path.delimiter),
+  ].filter(Boolean);
+  for (const directory of searchDirectories) {
+    const candidate = path.join(directory, "node_modules", "npm", "bin", filename);
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    `Could not locate ${filename}. Install npm alongside Node.js and rerun the check.`,
+  );
+}
+
+function run(
+  command: string,
+  args: string[],
+  cwd = process.cwd(),
+  environment: Record<string, string | undefined> = {},
+): string {
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
-    env: {...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"},
+    env: {
+      ...process.env,
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0",
+      ...environment,
+    } as NodeJS.ProcessEnv,
   });
   if (result.status !== 0) {
     throw new Error(
@@ -21,13 +64,21 @@ function run(command: string, args: string[], cwd = process.cwd()): string {
   return result.stdout;
 }
 
+function runYarn(
+  args: string[],
+  cwd = process.cwd(),
+  environment: Record<string, string | undefined> = {},
+): string {
+  return run(process.execPath, [yarnJavaScript, ...args], cwd, environment);
+}
+
 const temporary = await mkdtemp(path.join(tmpdir(), "microfeed-cli-pack-"));
 try {
   const rootPackage = JSON.parse(
     await readFile(path.join(process.cwd(), "package.json"), "utf8"),
   ) as {version: string};
   const archive = path.join(temporary, "microfeed-cli.tgz");
-  run("yarn", [
+  runYarn([
     "workspace",
     "@microfeed/cli",
     "pack",
@@ -35,11 +86,21 @@ try {
     archive,
   ]);
   await extractTar({cwd: temporary, file: archive});
+  try {
+    await readFile(path.join(
+      temporary,
+      "package/.microfeed/webhooks/endpoint1/README.md",
+    ));
+    throw new Error("The packed CLI contains a local .microfeed workspace.");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   const packedPackage = JSON.parse(
     await readFile(path.join(temporary, "package", "package.json"), "utf8"),
   ) as {
     bin?: {microfeed?: string};
     bugs?: {url?: string};
+    dependencies?: Record<string, string>;
     homepage?: string;
     keywords?: string[];
     name?: string;
@@ -49,9 +110,10 @@ try {
   };
   if (packedPackage.name !== "@microfeed/cli" ||
       packedPackage.version !== rootPackage.version ||
-      packedPackage.bin?.microfeed !== "dist/index.js") {
+      packedPackage.bin?.microfeed !== "dist/index.js" ||
+      packedPackage.dependencies?.["@yarnpkg/cli-dist"] !== "4.18.0") {
     throw new Error(
-      "The packed CLI has a stale version or does not expose the microfeed binary.",
+      "The packed CLI has stale release metadata or deployment dependencies.",
     );
   }
   if (packedPackage.homepage !== "https://docs.microfeed.org/microfeed-cli/" ||
@@ -65,16 +127,6 @@ try {
       packedPackage.publishConfig?.access !== "public" ||
       packedPackage.publishConfig?.registry !== "https://registry.npmjs.org") {
     throw new Error("The packed CLI is missing its npm discovery metadata.");
-  }
-  const packedReadme = await readFile(
-    path.join(temporary, "package", "README.md"),
-    "utf8",
-  );
-  if (!packedReadme.includes("yarn microfeed login") ||
-      !packedReadme.includes("npm install --global @microfeed/cli") ||
-      !packedReadme.includes("Site URLs and instance names") ||
-      !packedReadme.includes("GNU Affero General Public License v3.0")) {
-    throw new Error("The packed CLI README is incomplete.");
   }
   const [rootLicense, packedLicense] = await Promise.all([
     readFile(path.join(process.cwd(), "LICENSE"), "utf8"),
@@ -161,14 +213,13 @@ try {
     packageManager: "yarn@4.18.0",
     private: true,
   }), "utf8");
-  run("yarn", ["install"], project);
-  const projectHelp = run("yarn", ["microfeed", "--help"], project);
+  runYarn(["install"], project);
+  const projectHelp = runYarn(["microfeed", "--help"], project);
   if (HELP !== projectHelp) {
     throw new Error("A project-local @microfeed/cli behaves differently.");
   }
   const expectedCreateHelp = renderCliHelp(["item", "create"]);
-  const projectCreateHelp = run(
-    "yarn",
+  const projectCreateHelp = runYarn(
     ["microfeed", "item", "create", "--help"],
     project,
   );
@@ -181,8 +232,7 @@ try {
     "webhooks",
     "endpoint1",
   );
-  const projectScaffoldResult = JSON.parse(run(
-    "yarn",
+  const projectScaffoldResult = JSON.parse(runYarn(
     ["microfeed", "webhook", "scaffold", projectScaffold, "--json"],
     project,
   )) as {directory?: string; language?: string};
@@ -200,7 +250,7 @@ try {
   ])) {
     throw new Error("The packed JavaScript webhook starter file set is incomplete.");
   }
-  run("yarn", ["install"], projectScaffold);
+  runYarn(["install"], projectScaffold);
   const installedStarterLock = await readFile(
     path.join(projectScaffold, "yarn.lock"),
     "utf8",
@@ -213,7 +263,7 @@ try {
     throw new Error("The nested JavaScript webhook starter cannot install independently.");
   }
 
-  const dlxHelp = run("yarn", [
+  const dlxHelp = runYarn([
     "dlx",
     "--package",
     `@microfeed/cli@file:${archive}`,
@@ -224,8 +274,151 @@ try {
   if (!dlxHelp.endsWith(HELP)) {
     throw new Error("The yarn dlx @microfeed/cli behavior diverged.");
   }
+  const expectedManageHelp = renderCliHelp(["manage"]);
+  const dlxManageHelp = runYarn([
+    "dlx",
+    "--package",
+    `@microfeed/cli@file:${archive}`,
+    "microfeed",
+    "manage",
+    "--help",
+  ], temporary);
+  if (!dlxManageHelp.endsWith(expectedManageHelp)) {
+    throw new Error("The packed source-code-free management help diverged.");
+  }
+
+  const npmConsumer = path.join(temporary, "npm-consumer");
+  await mkdir(npmConsumer);
+  await writeFile(path.join(npmConsumer, "package.json"), JSON.stringify({
+    private: true,
+  }));
+  run(process.execPath, [npmJavaScript("npm"),
+    "install",
+    "--ignore-scripts",
+    "--omit=optional",
+    archive,
+  ], npmConsumer);
+  const npxManageHelp = run(process.execPath, [npmJavaScript("npx"),
+    "--no-install",
+    "microfeed",
+    "manage",
+    "--help",
+  ], npmConsumer);
+  const expectedNpxManageHelp = renderCliHelp(
+    ["manage"],
+    NPX_CLI_INVOCATION,
+  );
+  if (npxManageHelp !== expectedNpxManageHelp) {
+    throw new Error("The npx @microfeed/cli management help diverged.");
+  }
+
+  const npxHelp = run(process.execPath, [npmJavaScript("npx"),
+    "--no-install",
+    "microfeed",
+    "--help",
+  ], npmConsumer);
+  const expectedNpxHelp = renderCliHelp(undefined, NPX_CLI_INVOCATION);
+  if (npxHelp !== expectedNpxHelp) {
+    throw new Error("The npx @microfeed/cli help uses the wrong launcher.");
+  }
+
+  const globalHelp = run(process.execPath, [
+    path.join(temporary, "package", "dist", "index.js"),
+    "--help",
+  ], temporary, {
+    npm_command: "",
+    npm_execpath: "",
+    npm_lifecycle_event: "",
+    npm_config_user_agent: "",
+  });
+  const expectedGlobalHelp = renderCliHelp(undefined, GLOBAL_CLI_INVOCATION);
+  if (globalHelp !== expectedGlobalHelp) {
+    throw new Error("The globally installed microfeed help uses the wrong launcher.");
+  }
+
+  const runtimeManifest = JSON.parse(await readFile(path.join(
+    temporary,
+    "package/dist/manage-runtime-manifest.json",
+  ), "utf8")) as {
+    files?: Array<{path?: string; sha256?: string; size?: number}>;
+    schemaVersion?: number;
+    sourceCommit?: string;
+    version?: string;
+  };
+  const runtimePaths = new Set(
+    runtimeManifest.files?.map(({path: runtimePath}) => runtimePath) ?? [],
+  );
+  if (runtimeManifest.schemaVersion !== 1 ||
+      runtimeManifest.version !== rootPackage.version ||
+      !/^[0-9a-f]{40}$/u.test(runtimeManifest.sourceCommit ?? "") ||
+      !runtimePaths.has("package.json") ||
+      !runtimePaths.has("manage-cli/index.ts") ||
+      !runtimePaths.has("docs/manage-cli.md") ||
+      !runtimePaths.has(".agents/skills/deploy-microfeed/SKILL.md") ||
+      [...runtimePaths].some((runtimePath) =>
+        runtimePath?.startsWith("docs/") && runtimePath !== "docs/manage-cli.md"
+      )) {
+    throw new Error("The packed deployment runtime is incomplete or oversized.");
+  }
+  for (const file of runtimeManifest.files ?? []) {
+    if (!file.sha256 || !Number.isSafeInteger(file.size)) {
+      throw new Error("The packed deployment runtime manifest is invalid.");
+    }
+    const payload = await readFile(path.join(
+      temporary,
+      "package/dist/manage-runtime-files",
+      file.sha256,
+    ));
+    if (payload.byteLength !== file.size) {
+      throw new Error(`The packed deployment source is damaged: ${file.path}`);
+    }
+  }
+  const packageEntry = runtimeManifest.files?.find(({path: runtimePath}) =>
+    runtimePath === "package.json"
+  );
+  if (!packageEntry?.sha256) {
+    throw new Error("The packed deployment source has no package metadata.");
+  }
+  const packedRuntimePackage = JSON.parse(await readFile(path.join(
+    temporary,
+    "package/dist/manage-runtime-files",
+    packageEntry.sha256,
+  ), "utf8")) as {version?: string};
+  if (packedRuntimePackage.version !== rootPackage.version) {
+    throw new Error("The packed deployment source version is stale.");
+  }
+
+  const packedManage = await import(pathToFileURL(path.join(
+    temporary,
+    "package/dist/manage.js",
+  )).href);
+  const handoffOutput: string[] = [];
+  const cacheDirectory = path.join(temporary, "launcher-cache");
+  const handoffExitCode = await packedManage.runManageLauncher([], {
+    cacheDirectory,
+    environment: {PATH: process.env.PATH},
+    output: (value: string) => handoffOutput.push(value),
+    packageVersion: rootPackage.version,
+    runner: async () => ({
+      exitCode: 0,
+      signal: null,
+      stderr: "",
+      stdout: "",
+    }),
+    stateDirectory: path.join(temporary, "launcher-config"),
+    tsxJavaScript: path.join(temporary, "fake-tsx.mjs"),
+    yarnJavaScript: path.join(temporary, "fake-yarn.js"),
+  });
+  const handoff = handoffOutput.join("\n");
+  if (handoffExitCode !== 0 ||
+      !handoff.includes(`microfeed v${rootPackage.version}`) ||
+      !handoff.includes(path.join("deploy-microfeed", "SKILL.md")) ||
+      !handoff.includes(path.join("docs", "manage-cli.md")) ||
+      !handoff.includes("npx @microfeed/cli manage accounts --json")) {
+    throw new Error("The packed coding-agent handoff is incomplete.");
+  }
   const dlxScaffold = path.join(temporary, "dlx-scaffold");
-  const dlxScaffoldOutput = run("yarn", [
+  const dlxScaffoldOutput = runYarn([
     "dlx",
     "--package",
     `@microfeed/cli@file:${archive}`,
@@ -254,7 +447,7 @@ try {
     throw new Error("The packed Python webhook starter file set is incomplete.");
   }
   process.stdout.write(
-    "Workspace, project-local, packed, and yarn dlx @microfeed/cli behavior match.\n",
+    "Workspace, project-local, packed, global, npx, and yarn dlx @microfeed/cli behavior match.\n",
   );
 } finally {
   await rm(temporary, {force: true, recursive: true});

@@ -145,7 +145,8 @@ describe("theme repository initialization", () => {
     };
     let managementHeaders: Headers | undefined;
     vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
-      const url = String(input);
+      const requestInput = input instanceof Request ? input : null;
+      const url = requestInput ? requestInput.url : String(input);
       if (url.includes("/d1/database/")) {
         const request = JSON.parse(String(init?.body)) as {sql: string};
         if (request.sql.includes("SELECT * FROM themes WHERE id = ?")) {
@@ -160,7 +161,9 @@ describe("theme repository initialization", () => {
         throw new Error(`Unexpected D1 query: ${request.sql}`);
       }
       if (url.includes("/.well-known/microfeed/theme-management/")) {
-        managementHeaders = new Headers(init?.headers);
+        managementHeaders = input instanceof Request
+          ? input.headers
+          : new Headers(init?.headers);
         return Response.json({state: {active_theme_id: "theme-id"}});
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -332,13 +335,13 @@ describe("theme repository initialization", () => {
       packageId: "microfeed.default",
       sourceKind: "bundled",
       sourcePath: "bundled:default",
-      version: "1.1.16",
+      version: "1.1.17",
     });
     expect(stored.get("microfeed.default")).toMatchObject({
       package_id: "microfeed.default",
       source_kind: "bundled",
       source_path: "bundled:default",
-      version: "1.1.16",
+      version: "1.1.17",
     });
     expect([...stored.keys()]).toEqual(BUNDLED_THEME_CATALOG.map(
       ({packageId}) => packageId,
@@ -481,7 +484,7 @@ describe("theme repository initialization", () => {
       expect(stored.get("microfeed.default")).toMatchObject({
         package_id: "microfeed.default",
         source_kind: "bundled",
-        version: "1.1.16",
+        version: "1.1.17",
       });
       expect(queries.filter((sql) => sql.includes("INSERT INTO themes")))
         .toHaveLength(BUNDLED_THEME_CATALOG.length);

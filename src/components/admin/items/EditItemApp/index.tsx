@@ -1,3 +1,8 @@
+import SeoEditor from "@/components/admin/shared/SeoEditor";
+import PodcastEditor from "@/components/admin/shared/PodcastEditor";
+import {scrollExpandedAdminSectionIntoView} from "@/client/AdminSectionScroll";
+import {automaticItemSlug, itemUrl} from "@/shared/ItemUrls";
+import {mergeOverrides} from "@/shared/Seo";
 import React from 'react';
 import {Trash2Icon} from "lucide-react";
 import {navigate} from 'astro:transitions/client';
@@ -13,7 +18,6 @@ import {
 import AdminImageUploaderApp from "@/components/admin/shared/AdminImageUploaderApp";
 import AdminDatetimePicker from '@/components/admin/shared/AdminDatetimePicker';
 import {datetimeLocalStringToMs, datetimeLocalToMs} from "@/shared/TimeUtils";
-import {getPublicBaseUrl} from "@/client/ClientUrlUtils";
 import AdminRadioGroup from "@/components/admin/shared/AdminRadioGroup";
 import {showToast} from "@/client/ToastUtils";
 import MediaManager from "./components/MediaManager";
@@ -59,6 +63,9 @@ import {
   type SeriesKind,
   type SeriesRecord,
 } from "@/shared/Series";
+import {nativeWebMcpAvailable} from "@/client/webmcp/feature-detection";
+import {WEBMCP_INTERACTION_HEADERS} from "@/shared/WebMcp";
+import type {SaveItemDraftInput} from "@/client/webmcp/schemas";
 
 const SUBMIT_STATUS__START = 1;
 
@@ -117,6 +124,7 @@ interface Props {
 interface ItemSnapshot {
   deleteImageUrls: string[];
   item: Record<string, unknown>;
+  webMcpSignal?: AbortSignal;
 }
 
 export default class EditItemApp extends React.Component<Props, any> {
@@ -124,6 +132,9 @@ export default class EditItemApp extends React.Component<Props, any> {
   private cleanupNavigationGuard?: () => void;
   private mounted = false;
   private publishRequested = false;
+  private webMcpController?: AbortController;
+  private webMcpLoadVersion = 0;
+  private webMcpSaveSignal?: AbortSignal;
 
   constructor(props: Props) {
     super(props);
@@ -152,8 +163,6 @@ export default class EditItemApp extends React.Component<Props, any> {
       itemId,
       action,
 
-      autoUpdateLink: action === 'create',
-      userChangedLink: false,
       autosaveState: {dirty: false, phase: "idle"} satisfies AutosaveState,
       replacedImageUrls: [],
     };
@@ -162,6 +171,9 @@ export default class EditItemApp extends React.Component<Props, any> {
       getSnapshot: () => ({
         deleteImageUrls: [...this.state.replacedImageUrls],
         item: {id: this.state.itemId, ...this.state.item},
+        ...(this.webMcpSaveSignal
+          ? {webMcpSignal: this.webMcpSaveSignal}
+          : {}),
       }),
       onError: (error) => this.showSaveError(error),
       onStateChange: (autosaveState) => {
@@ -196,10 +208,19 @@ export default class EditItemApp extends React.Component<Props, any> {
         this.onUpdateItemMeta(attrDict);
       }
     }
+    this.reconcileWebMcpTool();
+  }
+
+  componentDidUpdate(_previousProps: Props, previousState: any) {
+    if (previousState.item.status !== this.state.item.status) {
+      this.reconcileWebMcpTool();
+    }
   }
 
   componentWillUnmount() {
     this.mounted = false;
+    this.webMcpLoadVersion += 1;
+    this.webMcpController?.abort();
     this.autosave.dispose();
     this.cleanupNavigationGuard?.();
   }
@@ -263,7 +284,22 @@ export default class EditItemApp extends React.Component<Props, any> {
   }
 
   async saveSnapshot(snapshot: ItemSnapshot) {
-    await Requests.axiosPost(ADMIN_URLS.ajaxFeed(), snapshot);
+    const {webMcpSignal, ...body} = snapshot;
+    let response;
+    if (webMcpSignal) {
+      try {
+        response = await Requests.axiosPost(ADMIN_URLS.ajaxFeed(), body, {
+          headers: WEBMCP_INTERACTION_HEADERS,
+          signal: webMcpSignal,
+        });
+      } finally {
+        if (this.webMcpSaveSignal === webMcpSignal) {
+          this.webMcpSaveSignal = undefined;
+        }
+      }
+    } else {
+      response = await Requests.axiosPost(ADMIN_URLS.ajaxFeed(), body);
+    }
     if (!this.mounted) return;
 
     const created = this.state.action === 'create';
@@ -272,6 +308,11 @@ export default class EditItemApp extends React.Component<Props, any> {
     await new Promise<void>((resolve) => {
       this.setState((previousState: any) => ({
         action: created ? 'edit' : previousState.action,
+        seoError: undefined,
+        podcastError: undefined,
+        item: {...previousState.item, ...response?.data?.itemUrl,
+          ...(previousState.item.applySlug === snapshot.item.applySlug ? {applySlug: undefined} : {}),
+        },
         feed: {
           ...previousState.feed,
           item: snapshot.item,
@@ -299,11 +340,91 @@ export default class EditItemApp extends React.Component<Props, any> {
   }
 
   showSaveError(error: any) {
+    if (error?.response?.data?.error) this.setState({
+      [String(error.response.data.error).startsWith("podcast.") ? "podcastError" : "seoError"]: error.response.data.error,
+    });
     if (!error?.response) {
       showToast('Network error. Your changes are still on this page.', 'error');
     } else {
       showToast('Couldn’t save. Your changes are still on this page.', 'error');
     }
+  }
+
+  private reconcileWebMcpTool() {
+    this.webMcpLoadVersion += 1;
+    const loadVersion = this.webMcpLoadVersion;
+    this.webMcpController?.abort();
+    this.webMcpController = undefined;
+    if (
+      !this.mounted || this.state.item.status !== STATUSES.UNPUBLISHED ||
+      !nativeWebMcpAvailable()
+    ) {
+      return;
+    }
+    void import("@/client/webmcp/editor-tools").then(
+      ({registerItemDraftTool}) => {
+        if (!this.mounted || loadVersion !== this.webMcpLoadVersion) return;
+        const controller = new AbortController();
+        this.webMcpController = controller;
+        return registerItemDraftTool(
+          controller.signal,
+          (input, signal) => this.saveWebMcpDraft(input, signal),
+        );
+      },
+    ).catch((error) => {
+      if (!this.webMcpController?.signal.aborted) {
+        this.webMcpController?.abort();
+        console.warn(error);
+      }
+    });
+  }
+
+  private async saveWebMcpDraft(
+    input: SaveItemDraftInput,
+    signal: AbortSignal,
+  ) {
+    if (signal.aborted) throw signal.reason;
+    if (this.state.item.status !== STATUSES.UNPUBLISHED) {
+      throw new Error("WebMCP can save only the visible unpublished Item.");
+    }
+    this.webMcpSaveSignal = signal;
+    await new Promise<void>((resolve) => {
+      this.setState((previousState: any) => ({
+        item: {
+          ...previousState.item,
+          ...(input._microfeed && Object.hasOwn(input._microfeed, "seo")
+            ? {seo: mergeOverrides(previousState.item.seo, input._microfeed.seo ?? null)} : {}),
+          ...(input._microfeed && Object.hasOwn(input._microfeed, "authors")
+            ? {authorIdentities: input._microfeed.authors} : {}),
+          ...(input._microfeed && Object.hasOwn(input._microfeed, "podcast")
+            ? {podcast: mergeOverrides(previousState.item.podcast, input._microfeed.podcast ?? null)} : {}),
+          ...(input._microfeed?.slug !== undefined ? {applySlug: input._microfeed.slug} : {}),
+          ...(input.url !== undefined ? {link: input.url || undefined} : {}),
+          ...(input.language !== undefined ? {language: input.language} : {}),
+          ...(input.title !== undefined ? {title: input.title} : {}),
+          ...(input.content_html !== undefined
+            ? {description: input.content_html}
+            : {}),
+          status: STATUSES.UNPUBLISHED,
+        },
+      }), () => {
+        this.autosave.markChanged({immediate: true});
+        resolve();
+      });
+    });
+    if (!await this.autosave.flush()) {
+      throw new Error("The Item draft could not be saved.");
+    }
+    return {
+      content_html: String(this.state.item.description ?? ""),
+      editor_url: new URL(
+        ADMIN_URLS.editItem(this.state.itemId),
+        window.location.origin,
+      ).toString(),
+      id: this.state.itemId,
+      status: "unpublished",
+      title: String(this.state.item.title ?? ""),
+    };
   }
 
   render() {
@@ -389,13 +510,6 @@ export default class EditItemApp extends React.Component<Props, any> {
                   onChange={(e: any) => {
                     const nextTitle = e.target.value;
                     const attrDict = {'title': nextTitle};
-                    if (this.state.autoUpdateLink && !this.state.userChangedLink) {
-                      (attrDict as any).link = PUBLIC_URLS.webItem(
-                        itemId,
-                        nextTitle,
-                        getPublicBaseUrl(),
-                      );
-                    }
                     this.onUpdateItemMeta(attrDict);
                   }}
                 />
@@ -412,7 +526,10 @@ export default class EditItemApp extends React.Component<Props, any> {
                   />
                   <AdminInput
                     labelComponent={<AdminHelpLabel help={CONTROLS_TEXTS_DICT[ITEM_CONTROLS.LINK]}/>}
-                    value={item.link}
+                    value={item.link || ""}
+                    placeholder={itemUrl({...item, id: itemId,
+                      ...(action === "create" ? {publicPath: `/i/${automaticItemSlug(item.title || "")}/`} : {}),
+                    }, window.location.origin)}
                     onChange={(e: any) => this.onUpdateItemMeta({'link': e.target.value}, {userChangedLink: true})}
                   />
                 </div>
@@ -577,7 +694,7 @@ export default class EditItemApp extends React.Component<Props, any> {
             })()}
           </div>
           <div className="rounded-[14px] border bg-card p-5 text-card-foreground shadow-xs">
-            <details>
+            <details onToggle={scrollExpandedAdminSectionIntoView}>
               <summary className="m-page-summary">Podcast-specific fields</summary>
               <div className="grid grid-cols-1 gap-8">
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -654,8 +771,24 @@ export default class EditItemApp extends React.Component<Props, any> {
                   />
                 </div>
               </div>
+              <PodcastEditor value={item.podcast} channel={feed.channel?.podcast} itemId={itemId}
+                language={feed.channel?.language} publicBucketUrl={publicBucketUrl}
+                mediaStorageReady={mediaStorageReady} error={this.state.podcastError}
+                onChange={(podcast) => this.onUpdateItemMeta({podcast})} />
             </details>
           </div>
+          <SeoEditor value={item} channel={feed.channel} itemId={itemId} feed={feed}
+            publicBucketUrl={publicBucketUrl} mediaStorage={mediaStorage} error={this.state.seoError}
+            onChange={(patch, previousImage) => this.onUpdateItemMeta(patch, {
+              replacedImageUrls: queueReplacedImageUrl(this.state.replacedImageUrls, previousImage),
+            })}
+            onApplySlug={async (slug) => {
+              if (!await this.autosave.flush()) return false;
+              await new Promise<void>((resolve) => this.setState((previous: any) => ({
+                item: {...previous.item, applySlug: slug},
+              }), () => { this.autosave.markChanged({immediate: true}); resolve(); }));
+              return this.autosave.flush();
+            }} />
         </div>
         <div className="xl:col-span-3">
           <div className="grid gap-4 xl:sticky xl:top-4">
@@ -689,7 +822,7 @@ export default class EditItemApp extends React.Component<Props, any> {
             {action === 'edit' && <div>
               <AdminSideQuickLinks
                 AdditionalLinksDiv={<div className="flex flex-wrap">
-                  <SideQuickLink url={PUBLIC_URLS.webItem(itemId, item.title)} text="web item"/>
+                  <SideQuickLink url={itemUrl({...item, id: itemId})} text="web item"/>
                   <SideQuickLink url={PUBLIC_URLS.jsonItem(itemId)} text="json item"/>
                 </div>}
               />

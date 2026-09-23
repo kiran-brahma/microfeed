@@ -122,11 +122,11 @@ function itemSearchCommandResult(args: readonly string[]) {
   }
   const commandIndex = args.indexOf("--command");
   const sql = args[commandIndex + 1] ?? "";
-  if (!sql.includes("site_search") && !sql.includes("content_text_updated_at")) {
+  if (!sql.includes("site_search") && !sql.includes("content_text_updated_at") && !sql.includes("public_path IS NULL")) {
     return undefined;
   }
   const results = sql.includes("sqlite_schema")
-    ? [{name: "site_search_exact"}, {name: "site_search_title_trigram"}]
+    ? [{name: "site_search_exact"}, {name: "site_search_title_trigram"}, {name: "site_search_bigram"}]
     : sql.includes("COUNT(*)")
     ? [{count: 0}]
     : [];
@@ -243,6 +243,7 @@ function completedRemoteConfig(): MicrofeedConfig {
 function completedRemoteRunner(input: {
   ownerExists: boolean;
   pendingEmail?: string;
+  sqlStatements?: string[];
 }): CommandRunner {
   return vi.fn<CommandRunner>(async (_executable, args) => {
     const command = args.join(" ");
@@ -283,6 +284,10 @@ function completedRemoteRunner(input: {
     if (
       command.includes("d1 execute feed-db --remote --file")
     ) {
+      const fileIndex = args.indexOf("--file");
+      if (input.sqlStatements && fileIndex >= 0) {
+        input.sqlStatements.push(await readFile(args[fileIndex + 1]!, "utf8"));
+      }
       return commandResult("Executed");
     }
     if (command.startsWith("d1 migrations apply feed-db --remote ")) {
@@ -412,10 +417,10 @@ describe("first-class local instances", () => {
       .map(([, args]) => args.join(" "))
       .filter((command) => command.includes("--persist-to"));
     expect(persistPaths.some((command) =>
-      command.includes("instances/personal/local-state")
+      command.includes(path.join("instances", "personal", "local-state"))
     )).toBe(true);
     expect(persistPaths.some((command) =>
-      command.includes("instances/company/local-state")
+      command.includes(path.join("instances", "company", "local-state"))
     )).toBe(true);
     expect(persistPaths.every((command) => !command.includes("--remote")))
       .toBe(true);
@@ -455,6 +460,21 @@ describe("first-class local instances", () => {
       "Production D1 and R2 data will not be accessed or changed.",
     );
     expect(text).toContain("Instance type: Local only");
+    const devCall = (runner as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([, args]) => args[0] === "dev:astro",
+    );
+    expect(devCall?.[2]).toMatchObject({
+      env: expect.objectContaining({
+        ASTRO_DEV_BACKGROUND: "1",
+        MICROFEED_WRANGLER_CONFIG: expect.any(String),
+      }),
+      interactive: true,
+    });
+    expect(path.isAbsolute(
+      devCall?.[2]?.env?.MICROFEED_WRANGLER_CONFIG ?? "",
+    )).toBe(false);
+    expect(devCall?.[2]?.env?.MICROFEED_WRANGLER_CONFIG)
+      .not.toMatch(/^file:/u);
   });
 
   it("changes the local login email and resets its password safely", async () => {
@@ -488,7 +508,7 @@ describe("first-class local instances", () => {
       .filter((command) => command.includes("--file"));
     expect(fileCommands).toHaveLength(2);
     expect(fileCommands.every((command) =>
-      command.includes("instances/restored-local/local-state") &&
+      command.includes(path.join("instances", "restored-local", "local-state")) &&
       command.includes("--local") &&
       !command.includes("--remote")
     )).toBe(true);
@@ -680,6 +700,80 @@ describe("first-class local instances", () => {
     expect(runner).not.toHaveBeenCalled();
   });
 
+  it("resumes an incomplete first deployment with its upload-signing secret", async () => {
+    const {commands, config} = await freshModules();
+    await config.writeConfig({
+      ...completedRemoteConfig(),
+      adminAuthMode: "none",
+      completedSteps: ["d1-ready", "r2-ready"],
+      deploymentUrl: null,
+    });
+    let deployedSecrets: Record<string, string> | undefined;
+    const runner = vi.fn<CommandRunner>(async (_executable, args) => {
+      const command = args.join(" ");
+      if (command === "whoami --json") {
+        return commandResult(JSON.stringify({
+          accounts: [{id: "account-id", name: "Personal"}],
+          authType: "OAuth Token",
+          email: "cloudflare@example.com",
+          tokenPermissions: requiredScopes,
+        }));
+      }
+      if (command === "pages project list --json") {
+        return commandResult("[]");
+      }
+      if (command === "rev-parse --verify HEAD") {
+        return commandResult("a".repeat(40));
+      }
+      if (command.startsWith("d1 migrations apply feed-db --remote ")) {
+        return commandResult("Migrations applied");
+      }
+      if (command.startsWith("d1 execute feed-db --remote --file ")) {
+        return commandResult("Executed");
+      }
+      if (command.startsWith("d1 execute feed-db --remote --command ")) {
+        const sql = args[args.indexOf("--command") + 1] ?? "";
+        const results = sql.includes("sqlite_schema")
+          ? [{name: "site_search_exact"}, {name: "site_search_title_trigram"}, {name: "site_search_bigram"}]
+          : sql.includes("COUNT(*)") ? [{count: 0}] : [];
+        return commandResult(JSON.stringify([{results}]));
+      }
+      if (["types", "typecheck", "test:deploy", "build"].includes(args[0]!)) {
+        return commandResult();
+      }
+      if (args[0] === "deploy") {
+        const secretIndex = args.indexOf("--secrets-file");
+        expect(secretIndex).toBeGreaterThan(-1);
+        deployedSecrets = JSON.parse(
+          await readFile(args[secretIndex + 1]!, "utf8"),
+        ) as Record<string, string>;
+        return commandResult("https://feed.example.workers.dev");
+      }
+      throw new Error(`Unexpected command: ${command}`);
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      instanceId: "installation-id",
+      product: "microfeed",
+    })));
+
+    await commands.deployCommand({instance: "feed"}, runner);
+
+    expect(deployedSecrets).toEqual({
+      UPLOAD_SIGNING_KEY: expect.any(String),
+    });
+    expect(deployedSecrets?.UPLOAD_SIGNING_KEY).toHaveLength(43);
+    await expect(config.readConfig(false, "feed")).resolves.toEqual(
+      expect.objectContaining({
+        completedSteps: expect.arrayContaining([
+          "upload-signing-secret-created",
+          "worker-deployed",
+          "deployment-verified",
+        ]),
+        deploymentUrl: "https://feed.example.workers.dev",
+      }),
+    );
+  });
+
   it("creates a content-only local instance and enables simulated R2 later", async () => {
     const {commands, config, theme} = await freshModules();
     const runner = vi.fn<CommandRunner>(async (_executable, args) => {
@@ -751,7 +845,9 @@ describe("first-class local instances", () => {
       readFile(config.wranglerConfigPath(enabled!), "utf8"),
     ).resolves.toContain('"binding": "MEDIA_BUCKET"');
     const yarnScripts = runner.mock.calls
-      .filter(([executable]) => /(?:^|\/)yarn(?:\.cmd)?$/u.test(executable))
+      .filter(([executable]) =>
+        /^yarn(?:\.cmd|\.js)?$/u.test(path.basename(executable))
+      )
       .map(([, args]) => args[0]);
     expect(yarnScripts).toEqual([
       "types",
@@ -760,6 +856,14 @@ describe("first-class local instances", () => {
       "build",
     ]);
     expect(yarnScripts).not.toContain("test");
+    expect(runner.mock.calls
+      .filter(([executable]) =>
+        /^yarn(?:\.cmd|\.js)?$/u.test(path.basename(executable))
+      )
+      .every(([, , options]) =>
+        !path.isAbsolute(options?.env?.MICROFEED_WRANGLER_CONFIG ?? "") &&
+        !options?.env?.MICROFEED_WRANGLER_CONFIG?.startsWith("file:")
+      )).toBe(true);
   });
 
   it("simulates webhooks automatically in dev without changing deployment opt-in", async () => {
@@ -866,7 +970,9 @@ describe("first-class local instances", () => {
       local: true,
     }, runner)).rejects.toThrow("deployment smoke tests failed");
     const yarnScripts = runner.mock.calls
-      .filter(([executable]) => /(?:^|\/)yarn(?:\.cmd)?$/u.test(executable))
+      .filter(([executable]) =>
+        /^yarn(?:\.cmd|\.js)?$/u.test(path.basename(executable))
+      )
       .map(([, args]) => args[0]);
     expect(yarnScripts).toEqual(["types", "typecheck", "test:deploy"]);
     expect(yarnScripts).not.toContain("build");
@@ -1264,7 +1370,7 @@ describe("initialization lifecycle", () => {
     }, runner);
 
     const text = output.mock.calls.map(([value]) => String(value)).join("")
-      .replaceAll(/[\s│]+/gu, "");
+      .replaceAll(/[\s│|]+/gu, "");
     expect(text).toMatch(
       /https:\/\/feed\.example\.workers\.dev\/admin\/login\/[a-f0-9]{64}\/set_password\//u,
     );
@@ -1276,6 +1382,25 @@ describe("initialization lifecycle", () => {
     expect(commandsRun.some((command) =>
       /(?:deploy|d1 create|r2 bucket create)/u.test(command)
     )).toBe(false);
+  });
+
+  it("uses the Cloudflare login email for non-interactive admin setup", async () => {
+    const {commands, config} = await freshModules();
+    await config.writeConfig(completedRemoteConfig());
+    const sqlStatements: string[] = [];
+    const runner = completedRemoteRunner({
+      ownerExists: false,
+      sqlStatements,
+    });
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await commands.initCommand({
+      instance: "feed",
+      "no-open": true,
+      yes: true,
+    }, runner);
+
+    expect(sqlStatements.join("\n")).toContain("cloudflare@example.com");
   });
 
   it("prints auth subcommand usage without selecting or changing an instance", async () => {

@@ -1,23 +1,26 @@
 ---
 title: Content automation overview
-description: Choose the microfeed API, webhooks, or agent-friendly CLI for local agents, remote services, n8n, Zapier, and other content workflows.
+description: Choose WebMCP, the microfeed API, webhooks, or the agent-friendly CLI for browser agents, local agents, remote services, n8n, Zapier, and other workflows.
 ---
 
-microfeed provides three building blocks for content automation. Use one or
+microfeed provides four building blocks for content automation. Use one or
 combine them according to where the automation runs and whether it needs to
 react to changes.
 
-## Compare the API, webhooks, and CLI
+## Compare WebMCP, the API, webhooks, and CLI
 
 | Tool | Direction | Use it for | Authentication |
 | --- | --- | --- | --- |
 | **API** | Your integration → microfeed | Pull current content and create, update, or delete content. | A named, least-privilege `mf_…` API key. |
 | **Webhooks** | microfeed → your receiver | Receive a push notification whenever subscribed content changes. | A per-endpoint `whsec_…` signing secret verifies the request; it does not grant API access. |
 | **`@microfeed/cli`** | Local terminal or agent → microfeed API | Manage content through task-oriented commands without handling a raw API key. It is a more agent-friendly wrapper around the API. | Browser authorization stored and refreshed by the CLI. |
+| **WebMCP** | Protected dashboard ↔ browser agent | Read Items and Pages, open an editor, and save only the visible new or unpublished draft. | The existing built-in login or Cloudflare Access session; the native browser mediates tool use. |
 
 The API does not notify you when something changes. A webhook announces a
 change but cannot read or modify content. The CLI does not receive webhooks; it
 makes API operations easier and safer for a person or local coding agent.
+WebMCP is a small experimental, in-page tool surface for the active protected
+dashboard; it is not a remote MCP server or a background integration.
 
 ```text
 API client or CLI ───────── read and write ────────→ microfeed
@@ -40,7 +43,7 @@ content changes → signed webhook → policy, platform, or remote agent
 
 Use the API by itself for scheduled content imports, exports, synchronization,
 one-time editorial migrations, or other jobs that already know when to run.
-Use [`yarn manage snapshot`](/manage/backups-and-migrations/) for portable whole-site
+Use [`npx @microfeed/cli manage snapshot`](/manage/backups-and-migrations/) for portable whole-site
 backups and restores. Read the [API overview](../api/) and create one named
 credential with only the required read or write permissions.
 
@@ -91,6 +94,19 @@ Start with [Manage content with `@microfeed/cli`](./cli/) and [Manage content
 with AI agents](./ai-agents/). The `manage-microfeed-content` skill provides the
 matching workflow for coding agents.
 
+### Browser AI agents: use WebMCP for drafts
+
+When a browser provides the native experimental `document.modelContext` API,
+a protected microfeed dashboard automatically exposes concise tools for
+reading Items and Pages and saving the visible draft. Public pages and
+unsupported browsers do not load the WebMCP implementation. Publishing,
+deletion, media, configuration, and account operations remain outside this
+surface.
+
+See [Manage content with AI agents](./ai-agents/#use-webmcp-for-visible-drafts)
+for the exact boundary and performance behavior. Use the CLI for a local agent
+that needs to work beyond the active browser editor.
+
 ### Remote AI agents and long-running services: use webhooks and the API
 
 A deployed agent that should react asynchronously uses webhooks to learn what
@@ -128,7 +144,7 @@ both REST operations and webhook envelopes. Enable public API docs, then use
 Every webhook event has an exact named example in that contract. Open **Admin
 → Webhooks → Event explorer** to compare Payload, Schema, and Headers, preview
 generated or current content, and copy the raw JSON. From a terminal, read the
-same per-instance example with `yarn microfeed webhook sample <event> --json`.
+same per-instance example with `npx @microfeed/cli webhook sample <event> --json`.
 
 ## Automation examples
 
@@ -152,7 +168,7 @@ async function dispatch(event: MicrofeedEvent) {
 }
 ```
 
-Use `yarn microfeed webhook sample <event> --json` or Admin Event Explorer to
+Use `npx @microfeed/cli webhook sample <event> --json` or Admin Event Explorer to
 inspect the exact input while building each example. Event Explorer sends count
 toward the daily delivery budget; previews and local terminal prints do not.
 

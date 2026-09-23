@@ -1,32 +1,46 @@
 ---
 name: deploy-microfeed
-description: Deploy and administer microfeed from a local repository clone using the project-owned yarn manage CLI. Use when a user asks a coding agent to operate a local or Cloudflare instance, including accounts, initialization, connection, development, deployment, themes, snapshots, status, destruction, Pages migration, domains, Access, built-in authentication, configuration, or instance selection.
+description: Deploy and administer microfeed through the source-code-free @microfeed/cli launcher or the project-owned yarn manage CLI. Use when a user asks a coding agent to operate a local or Cloudflare instance, including accounts, initialization, connection, development, deployment, themes, snapshots, status, destruction, Pages migration, domains, Access, built-in authentication, configuration, or instance selection.
 ---
 
 # Deploy microfeed
 
-Use `yarn manage` as the only interface that changes Cloudflare. Do not replace
-the CLI workflow with raw Wrangler commands, Cloudflare API calls, an MCP
-server, a plugin, or dashboard-created Worker, D1, or R2 resources.
+Use the repository-owned `yarn manage` engine as the only interface that
+changes Cloudflare. Outside a repository clone, invoke that same engine through
+`npx @microfeed/cli manage`. Do not replace the CLI workflow with raw Wrangler
+commands, Cloudflare API calls, an MCP server, a plugin, or dashboard-created
+Worker, D1, or R2 resources.
 
 Read the relevant command section in the canonical
 [`yarn manage` reference](../../../docs/manage-cli.md) before using an unfamiliar
 command or option. Treat that document as the complete capability and
 side-effect contract; keep this skill focused on agent sequencing and safety.
 
-microfeed supports one deployment engine: `yarn manage` from a local repository
-clone. A person may run it directly or ask a local agent to operate it, but do
-not offer Cloudflare repository imports, Workers Builds, deploy buttons, GitHub
-Actions, raw Wrangler deploys, or API-token deployment as alternatives. If a
-user asks for a dashboard-only or hosted deployment, explain that it is not
-supported and guide them to the local `yarn manage` workflow. Never request
-their Cloudflare email, password, private password-setup link, or token in chat.
+microfeed supports one deployment engine. A person may run `yarn manage` from
+a trusted clone, a local coding agent may use `npx @microfeed/cli manage` to
+copy the exact bundled release into a private cache and forward commands to
+that engine, or a person may use the repository-owned manual GitHub Actions
+workflow to create or update a site with fresh device authorization. Do not
+offer Cloudflare repository imports, Workers Builds, deploy buttons, raw
+Wrangler deploys, API-token deployment, or another Actions workflow as
+alternatives. Never request a Cloudflare email, password, private
+password-setup link, or token in chat.
+
+Choose one command prefix for the session:
+
+- When the user or launcher invoked `npx @microfeed/cli manage`, use that exact
+  prefix for every management command. Translate every `yarn manage …` example
+  below to `npx @microfeed/cli manage …`, and translate `yarn dev …` to
+  `npx @microfeed/cli manage dev …`.
+- When operating inside a user-managed trusted microfeed clone, use the
+  documented `yarn manage` and `yarn dev` commands directly.
 
 ## Guardrails
 
-- Use this workflow only from a local interactive coding-agent session whose
-  environment can complete Wrangler's localhost browser OAuth callback. Do not
-  attempt it from a hosted or headless agent session.
+- Use management commands from a local interactive session that can complete
+  Wrangler's localhost browser callback. The only supported headless exception
+  is the repository-owned manual Actions workflow for creating or updating a
+  site; its `--device` flow requires a person to approve every run.
 - Never request a password or Cloudflare token in chat. Never use
   `--admin-password`; that deliberately unsafe option exists only for
   unattended automation whose operator accepts shell-history, process-list,
@@ -35,17 +49,32 @@ their Cloudflare email, password, private password-setup link, or token in chat.
   so the user can open it. Treat it as private: never ask the user to paste it
   back, write it to a file, reuse it in another command, or expose it after it
   has served its handoff.
-- Stop before deployment when the Wrangler browser OAuth callback is
-  unavailable.
-- Inspect `git status --short` before deploying. If the working tree is dirty,
-  identify that the current files will be built and obtain explicit approval
-  to deploy them. Do not modify, discard, or stash the changes.
+- Stop before deployment when neither the Wrangler browser callback nor the
+  documented manual Actions device flow is available.
+- In a user-managed clone, inspect `git status --short` before deploying. If
+  the working tree is dirty, identify that the current files will be built and
+  obtain explicit approval to deploy them. Do not modify, discard, or stash
+  the changes. The published launcher instead verifies the file manifest for
+  the exact release bundled with `@microfeed/cli` before every forwarded
+  command and recreates only its private source cache when verification fails;
+  never edit the launcher cache.
 - Treat changes to `package.json`, `yarn.lock`, `.yarn/`, `manage-cli/`,
-  `wrangler.jsonc`, `wrangler.template.jsonc`, `astro.config.ts`, or this skill
-  as security-sensitive because deployment executes or trusts them. Inspect
-  their diffs and any untracked files, name them to the user, and recommend a
-  clean trusted checkout. Continue only when the user explicitly trusts those
-  exact changes; a generic approval of a dirty tree is insufficient.
+  `.github/workflows/create-or-update-microfeed.yml`, `wrangler.jsonc`,
+  `wrangler.template.jsonc`, `astro.config.ts`, or this skill as
+  security-sensitive because deployment executes or trusts them. Inspect their
+  diffs and any untracked files, name them to the user, and recommend a clean
+  trusted checkout. Continue only when the user explicitly trusts those exact
+  changes; a generic approval of a dirty tree is insufficient.
+- For the manual Actions workflow, create a collision-checked new site or
+  update an existing compatible site. Require a trusted selected ref and a
+  fresh `--device` authorization, keep
+  `XDG_CONFIG_HOME` and `MICROFEED_STATE_DIRECTORY` under the hosted runner's
+  temporary directory, exclude both from caches, and run `wrangler logout` in
+  an always-run cleanup step. Never add a Cloudflare credential to repository
+  secrets or expose it in workflow output. New-site mode may use the
+  operator-created `MICROFEED_ADMIN_PASSWORD` Actions secret for unattended
+  built-in login setup; it is not a Cloudflare credential and should be removed
+  after initialization succeeds.
 - Explain the external changes before starting: fresh initialization can
   create a Worker, D1 database, R2 bucket, Worker secrets, and, only when
   selected, a Worker Custom Domain with Cloudflare-managed DNS and
@@ -187,34 +216,30 @@ disabled interval are not replayed. Rerunning enable or disable is idempotent;
 never recreate, rename, adopt, purge, resume, or delete the Queue outside
 `yarn manage`.
 
-## Fresh-clone workflow
+## Prepared-workspace workflow
 
-1. Confirm the repository root contains `package.json`, `yarn.lock`, and
+1. When the published launcher handed off this skill, use its printed cached
+   repository and reference paths and keep using the public `npx` command
+   prefix. The launcher has already verified the bundled release source and run
+   `yarn install --immutable` with its pinned Yarn runtime; do not edit the
+   cached source or run a second checkout. In a user-managed clone, confirm the
+   repository root contains `package.json`, `yarn.lock`, and
    `manage-cli/index.ts`.
-2. Check `node --version` and require Node.js 24. Check Corepack and enable it
-   when Yarn is unavailable. Obtain approval before a command writes outside
-   the workspace.
-3. Before any command receives OAuth input, obtain network
-   approval and run `yarn install --immutable --check-cache`. This must
+2. Require Node.js 22.12 or newer with npm for the public `npx` invocation.
+   Ordinary deployment through the published launcher does not require Git or
+   Corepack. Git is command-specific for installing or updating a theme from
+   GitHub, initializing a theme repository unless `--no-git` is passed, and
+   `theme export --git`. In a user-managed clone, check its normal development
+   tools directly and obtain approval before a command writes outside the
+   workspace.
+3. In a user-managed clone, before any command receives OAuth input, obtain
+   network approval and run `yarn install --immutable --check-cache`. This must
    revalidate the locked packages and relink local dependencies even when
    `node_modules` already exists, unless the same trusted session just
-   completed that exact command.
-4. Collect non-secret choices in the plain language described above. Ask only
-   for the site name and administrator sign-in email initially. Then require an
-   explicit choice between a custom web address and the free Cloudflare
-   address; do not silently assume either. If the user wants a custom address,
-   collect its exact hostname. Map those answers to the internal values and
-   recommend the documented defaults:
-   - site name, internally used as the instance and Worker name: the user's
-     globally distinctive name
-   - content database (D1): `<worker-name>-db`
-   - media storage (R2): `<worker-name>-media`
-   - dashboard path (`--admin-path`): `admin`
-   - authentication: built-in email/password
-   - administrator sign-in email, internally passed as owner email: supplied by
-     the user
-   - custom domain: optional; collect an exact hostname when selected
-5. Discover the user's Cloudflare access before any deployment mutation:
+   completed that exact command. The launcher-owned workspace has already
+   completed its locked installation.
+4. Do not assume the user needs a new site. Discover their Cloudflare access
+   before collecting new-site choices or making any deployment mutation:
 
    ```console
    yarn manage accounts --json
@@ -231,17 +256,38 @@ never recreate, rename, adopt, purge, resume, or delete the Queue outside
    user wants to preserve the current login and add another, use
    `yarn manage accounts --profile <name> --reauthorize` instead. Do not work
    around OAuth with a token.
-6. When exactly one account is returned, use its full ID. When several are
+5. When exactly one account is returned, use its full ID. When several are
    returned, show each plain-language account name and the last eight ID
    characters, then ask the user which one owns the site. Duplicate names are
    expected; use the selected full ID. Never select the first account, and
    never begin initialization before this choice is resolved.
+6. Run `yarn manage instances --account-id <account-id> --json`. Use the
+   selected saved instance when one exists. Otherwise show every exact
+   compatible Worker candidate. Ask the user to choose when more than one is
+   available, then use the ready-to-run read-only `connect` command for the
+   chosen Worker and continue with **Existing installations**. Continue below
+   only when no compatible Worker is selected and the user wants a new site.
+   Collect the new site's non-secret choices in plain language. Ask only for
+   the site name and administrator sign-in email initially. Then require an
+   explicit choice between a custom web address and the free Cloudflare
+   address; do not silently assume either. If the user wants a custom address,
+   collect its exact hostname. Map those answers to the internal values and
+   recommend the documented defaults:
+   - site name, internally used as the instance and Worker name: the user's
+     globally distinctive name
+   - content database (D1): `<worker-name>-db`
+   - media storage (R2): `<worker-name>-media`
+   - dashboard path (`--admin-path`): `admin`
+   - authentication: built-in email/password
+   - administrator sign-in email, internally passed as owner email: supplied by
+     the user
+   - custom domain: optional; collect an exact hostname when selected
 7. Summarize the selected site and the services Cloudflare will create in
    plain language: the hosted application (Worker), content database (D1),
-   optional media storage (R2), protected dashboard path and administrator login, and
-   optional custom web address. Show the exact technical resource names in
-   parentheses for an auditable approval. Obtain approval for the browser
-   Cloudflare sign-in and exact Cloudflare changes before starting the
+   optional media storage (R2), protected dashboard path and administrator
+   login, and optional custom web address. Show the exact technical resource
+   names in parentheses for an auditable approval. Obtain approval for the
+   browser Cloudflare sign-in and exact Cloudflare changes before starting the
    initialization command.
 8. Start initialization with every known non-secret choice and the exact
    account ID so the user is not asked twice:
@@ -307,6 +353,15 @@ never recreate, rename, adopt, purge, resume, or delete the Queue outside
     the admin dashboard is public.
 
 ## Existing installations
+
+With published-launcher state, start with `accounts --json`; when several
+accounts are available, show their names and ID suffixes and ask the user to
+select one. Then run `instances --account-id <account-id> --json`. Use the
+selected saved instance when one exists. Otherwise show every exact compatible
+Worker candidate, ask the user to choose when more than one is available, and
+run the listed read-only `connect` command for the selected Worker. Obtain
+deployment approval before `deploy`. Run `init` only when the user chooses a
+new site rather than a discovered installation.
 
 Before updating, show the selected instance with `yarn manage instances` and
 confirm the target. Run `yarn manage accounts --json`, verify that the saved

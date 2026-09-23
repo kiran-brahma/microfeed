@@ -272,10 +272,50 @@ describe("CloudflareClient", () => {
 
     expect(OAUTH_SCOPES).toContain("workers_scripts:write");
     expect(runner).toHaveBeenCalledWith(
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       ["login", "--use-keyring", "--scopes", ...OAUTH_SCOPES],
       expect.objectContaining({interactive: true}),
     );
+  });
+
+  it("uses device authorization without browser or keyring in headless environments", async () => {
+    const runner = vi.fn<CommandRunner>().mockResolvedValue(commandResult());
+
+    await new CloudflareClient(runner, ["queues:write"]).login({
+      device: true,
+    });
+
+    expect(runner).toHaveBeenCalledWith(
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
+      [
+        "login",
+        "--device",
+        "--browser=false",
+        "--no-use-keyring",
+        "--scopes",
+        ...OAUTH_SCOPES,
+        "queues:write",
+      ],
+      expect.objectContaining({interactive: true}),
+    );
+  });
+
+  it("does not replace an active named profile with device authorization", async () => {
+    const runner = vi.fn<CommandRunner>(async (_executable, args) => {
+      if (args.join(" ") === "auth list") {
+        return commandResult([
+          "│ Profile │ Bound Directories │",
+          `│ company │ ${repositoryRoot} │`,
+        ].join("\n"));
+      }
+      throw new Error(`Unexpected command: ${args.join(" ")}`);
+    });
+
+    await expect(
+      new CloudflareClient(runner).login({device: true}),
+    ).rejects.toThrow("cannot replace an active named Wrangler profile");
+    expect(runner.mock.calls.some(([, args]) => args[0] === "login"))
+      .toBe(false);
   });
 
   it("reauthorizes the active named profile when adding OAuth scopes", async () => {
@@ -292,7 +332,7 @@ describe("CloudflareClient", () => {
     await new CloudflareClient(runner, ["queues:write"]).login();
 
     expect(runner).toHaveBeenCalledWith(
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       [
         "auth",
         "create",
@@ -304,7 +344,7 @@ describe("CloudflareClient", () => {
       expect.objectContaining({interactive: true}),
     );
     expect(runner).toHaveBeenCalledWith(
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       ["auth", "activate", "company", repositoryRoot],
       expect.objectContaining({cwd: repositoryRoot}),
     );
@@ -322,6 +362,19 @@ describe("CloudflareClient", () => {
     );
   });
 
+  it("turns device authorization rejection into a non-destructive error", async () => {
+    const runner = vi.fn<CommandRunner>().mockRejectedValue(
+      new Error("device code expired"),
+    );
+
+    await expect(
+      new CloudflareClient(runner).login({device: true}),
+    ).rejects.toThrow(
+      "Cloudflare device authorization did not complete. No Cloudflare " +
+        "resources were changed.",
+    );
+  });
+
   it("creates named OAuth profiles in the keyring and activates the repository binding", async () => {
     const runner = vi.fn<CommandRunner>().mockResolvedValue(commandResult());
     const cloudflare = new CloudflareClient(runner);
@@ -331,7 +384,7 @@ describe("CloudflareClient", () => {
 
     expect(runner).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       ["auth", "create", "company", "--scopes", ...OAUTH_SCOPES],
       expect.objectContaining({
         env: expect.objectContaining({
@@ -342,7 +395,7 @@ describe("CloudflareClient", () => {
     );
     expect(runner).toHaveBeenNthCalledWith(
       2,
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       ["auth", "activate", "company", repositoryRoot],
       expect.objectContaining({cwd: repositoryRoot}),
     );
@@ -365,6 +418,7 @@ describe("CloudflareClient", () => {
           {id: "account-a", name: "Personal"},
           {id: "account-b", name: "Team"},
         ],
+        email: "admin@example.com",
         tokenPermissions: [...OAUTH_SCOPES, "offline_access"],
       }),
     ));
@@ -375,6 +429,7 @@ describe("CloudflareClient", () => {
       {id: "account-b", name: "Team"},
     ]);
     await expect(cloudflare.hasRequiredScopes()).resolves.toBe(true);
+    expect(cloudflare.loginEmail()).toBe("admin@example.com");
   });
 
   it("reports Queue and account-wide Cloudflare operation analytics", async () => {
@@ -821,7 +876,7 @@ describe("CloudflareClient", () => {
     ).resolves.toBe(false);
     expect(runner).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       [
         "versions",
         "list",
@@ -833,9 +888,11 @@ describe("CloudflareClient", () => {
         allowFailure: true,
         env: expect.objectContaining({
           CLOUDFLARE_ACCOUNT_ID: "account-id",
-          CLOUDFLARE_AUTH_USE_KEYRING: "true",
         }),
       }),
+    );
+    expect(runner.mock.calls[0]?.[2]?.env).not.toHaveProperty(
+      "CLOUDFLARE_AUTH_USE_KEYRING",
     );
   });
 
@@ -885,11 +942,11 @@ describe("CloudflareClient", () => {
     const deployArgs = runner.mock.calls[1]?.[1] ?? [];
     expect(migrationArgs).toContain("--config");
     expect(migrationArgs.join(" ")).toContain(
-      ".microfeed/instances/art-of-war/wrangler.jsonc",
+      nodePath.join(".microfeed", "instances", "art-of-war", "wrangler.jsonc"),
     );
     expect(deployArgs).toContain("--config");
     expect(deployArgs.join(" ")).toContain(
-      "dist/server/wrangler.json",
+      nodePath.join("dist", "server", "wrangler.json"),
     );
     expect(deployArgs).toContain("--tag");
     expect(deployArgs).toContain(sourceCommit);
@@ -912,7 +969,7 @@ describe("CloudflareClient", () => {
       new Set(["BETTER_AUTH_SECRET", "UPLOAD_SIGNING_KEY"]),
     );
     expect(runner).toHaveBeenCalledWith(
-      expect.stringMatching(/wrangler(?:\.cmd)?$/u),
+      expect.stringMatching(/wrangler(?:\.cmd|\.js)?$/u),
       [
         "secret",
         "list",

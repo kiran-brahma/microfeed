@@ -11,6 +11,7 @@ import {
 import path from "node:path";
 
 import * as tar from "tar";
+import {unstable_splitSqlQuery} from "wrangler";
 
 import {
   MICROFEED_OAUTH_CALLBACK_URL,
@@ -27,6 +28,7 @@ export const SNAPSHOT_TABLES = {
   durable: [
     "channels",
     "items",
+    "item_paths",
     "pages",
     "page_paths",
     "site_files",
@@ -50,6 +52,8 @@ export const SNAPSHOT_TABLES = {
     "item_search_metadata",
     "site_search_documents",
     "site_search_metadata",
+    "site_search_character_state",
+    "site_search_character_chunks",
     "oauth_access_token",
     "oauth_refresh_token",
     "oauth_consent",
@@ -753,6 +757,10 @@ export function buildRestoreSql(input: {
   schemaSql: string;
   snapshotApplicationTables: readonly string[];
 }): string {
+  // Install triggers after importing exact snapshot rows. In particular, item
+  // inserts must not recreate reservations before item_paths itself is restored.
+  const schema = unstable_splitSqlQuery(unwrapD1Export(input.schemaSql));
+  const isTrigger = (statement: string) => /^CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER\b/iu.test(statement.trim());
   const tablesToDrop = [...new Set([
     ...input.currentApplicationTables,
     ...input.snapshotApplicationTables,
@@ -763,8 +771,9 @@ export function buildRestoreSql(input: {
     // transaction statements are rejected by remote D1 imports.
     "PRAGMA defer_foreign_keys=TRUE;",
     ...tablesToDrop.map((table) => `DROP TABLE IF EXISTS ${sqlIdentifier(table)};`),
-    unwrapD1Export(input.schemaSql),
+    ...schema.filter((statement) => !isTrigger(statement)).map((statement) => `${statement};`),
     unwrapD1Export(input.dataSql),
+    ...schema.filter(isTrigger).map((statement) => `${statement};`),
     "",
   ].join("\n");
 }

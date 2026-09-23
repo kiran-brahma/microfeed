@@ -1,12 +1,13 @@
 {
   "name": "@microfeed/cli",
-  "version": "1.0.5",
-  "description": "Manage content on a microfeed instance",
+  "version": "1.0.13",
+  "description": "Deploy microfeed and manage content on its sites",
   "keywords": [
     "microfeed",
     "headless cms",
     "cms",
     "cli",
+    "deployment",
     "cloudflare"
   ],
   "homepage": "https://docs.microfeed.org/microfeed-cli/",
@@ -25,9 +26,7 @@
   },
   "files": [
     "dist",
-    "templates",
-    "README.md",
-    "LICENSE"
+    "templates"
   ],
   "engines": {
     "node": ">=22.12.0"
@@ -35,7 +34,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "microfeed": "node --import tsx src/index.ts",
-    "prepack": "yarn build && node scripts/copy-agent-skill.mjs"
+    "prepack": "yarn build && node scripts/copy-agent-skill.mjs && node scripts/copy-manage-runtime.mjs"
+  },
+  "dependencies": {
+    "@yarnpkg/cli-dist": "4.18.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
