@@ -30,6 +30,7 @@ export default defineConfig({
         },
       ],
       components: {
+        Footer: "./src/components/Footer.astro",
         PageTitle: "./src/components/PageTitle.astro",
         SocialIcons: "./src/components/GitHubRepoButtons.astro",
       },
@@ -48,8 +49,27 @@ export default defineConfig({
           items: [
             { label: "Quick start", link: "/start-here/" },
             { label: "How microfeed works", link: "/start-here/concepts/" },
-            { label: "Deploy with an AI agent", link: "/start-here/ai-agent/" },
-            { label: "Deploy manually", link: "/start-here/manual/" },
+            {
+              label: "Different ways to install",
+              items: [
+                {
+                  label: "Overview",
+                  link: "/start-here/install/",
+                },
+                {
+                  label: "1. Use a local AI agent",
+                  link: "/start-here/ai-agent/",
+                },
+                {
+                  label: "2. Use GitHub Actions",
+                  link: "/start-here/github-actions/",
+                },
+                {
+                  label: "3. Use @microfeed/cli manually",
+                  link: "/start-here/manual/",
+                },
+              ],
+            },
             { label: "After deployment", link: "/start-here/after-deploy/" },
           ],
         },
@@ -77,7 +97,24 @@ export default defineConfig({
           label: "Manage your site",
           items: [
             { label: "Overview", link: "/manage/" },
-            { label: "Update microfeed", link: "/manage/update/" },
+            {
+              label: "Update microfeed",
+              items: [
+                { label: "Overview", link: "/manage/update/" },
+                {
+                  label: "1. Use a local AI agent",
+                  link: "/manage/update/ai-agent/",
+                },
+                {
+                  label: "2. Use GitHub Actions",
+                  link: "/manage/update/github-actions/",
+                },
+                {
+                  label: "3. Use @microfeed/cli manually",
+                  link: "/manage/update/manual/",
+                },
+              ],
+            },
             { label: "Domains and authentication", link: "/manage/domains-and-access/" },
             { label: "Multiple instances", link: "/manage/multiple-instances/" },
             { label: "Snapshots and migrations", link: "/manage/backups-and-migrations/" },
@@ -125,7 +162,7 @@ export default defineConfig({
         {
           label: "Reference",
           items: [
-            { label: "yarn manage reference", link: "/manage-cli/" },
+            { label: "Management CLI reference", link: "/manage-cli/" },
             { label: "@microfeed/cli reference", link: "/microfeed-cli/" },
             { label: "@microfeed/theme-kit reference", link: "/theme-kit-cli/" },
             { label: "Glossary", link: "/reference/glossary/" },
@@ -144,7 +181,7 @@ export default defineConfig({
           description:
             "microfeed is an open-source CMS that publishes one collection as a website, RSS feed, and JSON Feed from the owner's Cloudflare account.",
           details:
-            "Use the Installation guides for deployment workflows. Use the yarn manage reference for site-management commands and the @microfeed/cli reference for content commands and safety rules.",
+            "Use the Installation guides for deployment workflows. Use the management CLI reference for site-management commands, the WebMCP guide for browser-based draft editing, and the @microfeed/cli reference for broader content commands and safety rules.",
           promote: ["index", "start-here/**", "manage-cli", "microfeed-cli", "theme-kit-cli"],
           demote: ["contribute/**"],
           customSets: [
@@ -161,9 +198,9 @@ export default defineConfig({
               paths: ["api/index", "api/authentication", "api/build-and-test"],
             },
             {
-              label: "Manage content with @microfeed/cli and AI agents",
+              label: "Manage content with WebMCP, @microfeed/cli, and AI agents",
               description:
-                "The guided CLI workflow, AI-agent conventions, and complete content-management command reference.",
+                "Use draft-only WebMCP site tools in a signed-in dashboard, or follow the guided CLI workflow and complete content-management command reference.",
               paths: ["automation/cli", "automation/ai-agents", "microfeed-cli"],
             },
             {

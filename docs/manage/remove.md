@@ -7,7 +7,7 @@ Removal can delete a Worker and site-owned data. Always begin with a read-only
 plan for the exact instance:
 
 ```console
-yarn manage destroy --instance <name> --dry-run
+npx @microfeed/cli manage destroy --instance <name> --dry-run
 ```
 
 ## Inspect the complete plan
@@ -35,7 +35,7 @@ The destructive command requires the exact site name as confirmation. Follow
 the plan’s printed command after you have approved that precise scope:
 
 ```console
-yarn manage destroy --instance <name> --confirm <name>
+npx @microfeed/cli manage destroy --instance <name> --confirm <name>
 ```
 
 `destroy` rejects blanket `--yes` approval and preserves resources recorded as
@@ -47,4 +47,4 @@ the same management command so its saved journal can report or resume the
 unfinished steps.
 
 For the complete contract, read
-[the `destroy` reference](/manage-cli/#yarn-manage-destroy).
+[the `destroy` reference](/manage-cli/#npx-microfeedcli-manage-destroy).

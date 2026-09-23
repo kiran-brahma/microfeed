@@ -1,37 +1,46 @@
 ---
-title: Deploy with an AI coding agent
-description: The recommended three-step route to a new microfeed site.
+title: 1. Use a local AI agent
+description: Detailed browser handoffs and recovery steps for an agent-guided deployment.
 ---
 
-Use a local coding agent that can run terminal commands and open browser pages.
-The agent reads microfeed’s repository instructions and operates the same
-guarded `yarn manage` CLI available to people.
+Use a local AI agent that can run terminal commands and open browser pages.
+The published launcher prepares an exact microfeed release in a private cache,
+then directs the agent to the same guarded management engine available in the
+microfeed source repository. You do not need to Git-clone or open that source
+repository yourself.
 
-## 1. Copy microfeed to your computer
+## 1. Open a local AI agent
 
-Open a terminal and run:
+Open Codex, Claude Code, Cursor, or another capable local AI agent that can run
+terminal commands on your computer and complete a browser handoff. The current
+folder does not need to contain source code.
 
-```console
-git clone https://github.com/microfeed/microfeed.git
-cd microfeed
-```
+Your computer needs Node.js 22.12 or newer with npm. The published launcher
+includes its own Yarn runtime and deployment source, so ordinary deployment
+does not require Git or Corepack.
 
-Expected result: a new `microfeed` folder containing this repository.
+## 2. Give the agent one command
 
-## 2. Open the folder in your coding agent
-
-Open that folder in OpenAI Codex, Claude Code, Cursor, or another local coding
-agent. Claude Code reads the repository's `CLAUDE.md` bridge, which imports the
-shared `AGENTS.md` guidance and routes matching work to the canonical skills
-under `.agents/skills/`. Then paste this prompt:
+Paste this prompt:
 
 ```text
 Deploy microfeed to Cloudflare.
+Start by running `npx @microfeed/cli manage`, then follow its instructions until
+deployment is verified.
 ```
 
-The agent should discover your Cloudflare login, ask you to choose an account
-if more than one is available, initialize a site, and verify the finished
-deployment.
+The first run verifies and copies the exact release bundled with
+`@microfeed/cli`, then installs the locked dependencies in your operating
+system cache with the included Yarn runtime. This may use about 1.3 GB and take
+several minutes, depending on your connection and computer. Later commands
+reuse that workspace, while saved
+deployment state lives separately so a cache refresh cannot erase your site
+connections.
+
+The command prints the exact deployment-skill and reference paths for the
+agent to read. The agent should discover your Cloudflare login, ask you to
+choose an account or existing compatible site when necessary, initialize only
+when you want a new site, and verify the finished deployment.
 
 <video class="docs-walkthrough" controls autoplay muted playsinline preload="metadata" poster="/images/screenshots/1-deploy-1.png" aria-label="A silent Codex deployment walkthrough progressing from the initial request through verification to the ready microfeed dashboard">
   <source src="/images/screenshots/1-deploy-walkthrough.mp4" type="video/mp4">
@@ -52,11 +61,11 @@ link into the agent conversation.
 
 ## Verify the result
 
-Ask the agent to run `yarn manage status`. The final report should show the
-site address, dashboard protection, D1 database, and R2 state. Open the
-public address and confirm the site loads. You can sign in to the dashboard and
-publish a test item yourself, or follow the
-[post-deployment checklist](../after-deploy/) to enable `yarn microfeed` for
+Ask the agent to run `npx @microfeed/cli manage status`. The final report
+should show the site address, dashboard protection, D1 database, and R2 state.
+Open the public address and confirm the site loads. You can sign in to the
+dashboard and publish a test item yourself, or follow the
+[post-deployment checklist](../after-deploy/) to enable `@microfeed/cli` for
 the agent.
 
 If setup stops partway through, tell the agent to continue the same microfeed

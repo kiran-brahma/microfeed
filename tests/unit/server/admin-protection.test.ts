@@ -187,7 +187,7 @@ describe("media delivery onboarding", () => {
         state,
       }),
     );
-    expect(output).toContain("yarn manage deploy --enable-r2");
+    expect(output).toContain("npx @microfeed/cli manage deploy --enable-r2");
     expect(output).toContain(
       state === "pending" ? "subscription is pending" : "uploads are disabled",
     );
@@ -320,10 +320,20 @@ describe("Cloudflare onboarding links", () => {
       'Open the <code class="font-semibold text-cloudflare-orange">' +
         "demo-worker</code> domain settings",
     );
+    expect(output).toContain("in Cloudflare to add a custom hostname");
+    expect(output).toContain(
+      "We recommend starting in the Cloudflare dashboard",
+    );
     expect(output).toContain(
       '<code class="font-semibold text-cloudflare-orange">' +
-        "yarn manage domain</code>",
+        "npx @microfeed/cli manage domain</code>",
     );
+    expect(output).toContain(
+      'href="https://docs.microfeed.org/manage/domains-and-access/"',
+    );
+    expect(output).toContain("Learn more about custom domains.");
+    expect(output).not.toContain("review the hostname for this site");
+    expect(output).not.toContain("The command updates the Worker configuration");
   });
 });
 

@@ -14,6 +14,9 @@
   continued when they already contain the task's work.
 - Preserve unrelated changes. Never stash, reset, discard, or stage them to
   make a task branch clean; use an isolated worktree when necessary.
+- Refrain from adding trivial unit tests or tests that merely mirror the
+  implementation. Focus new tests on meaningful behavior, regressions, and
+  public contracts; do not add tests solely for coverage counts.
 - Before publishing, run `git diff --check` and `yarn check`, commit only the
   scoped files with a concise imperative title, and open a draft pull request
   against `microfeed/microfeed` when GitHub authentication is available.
@@ -23,17 +26,23 @@
 
 ## Instance management and Cloudflare deployment
 
-- When a user asks a coding agent to operate `yarn manage` against local or
-  Cloudflare state, use the repository's `deploy-microfeed` skill. This covers
+- When a user asks a coding agent to operate `npx @microfeed/cli manage` or
+  `yarn manage` against local or Cloudflare state, use the repository's
+  `deploy-microfeed` skill. This covers
   accounts, initialization, connection, development, deployment, themes,
   snapshots, status, destruction, Pages migration, domains, Access, built-in
   authentication, configuration, and instance selection.
-- Perform every Cloudflare deployment change through `yarn manage`. Do not
-  improvise with raw Wrangler commands, direct Cloudflare API calls, or a
-  separate deployment implementation.
+- Perform every Cloudflare deployment change through the management engine.
+  Prefer `npx @microfeed/cli manage` outside a user-managed clone; use
+  `yarn manage` when already working inside one. When the launcher selected the
+  `npx` prefix, translate every `yarn manage` and `yarn dev` example below to
+  `npx @microfeed/cli manage` and `npx @microfeed/cli manage dev`.
 - Do not use or recommend Cloudflare repository imports, Workers Builds,
-  deploy buttons, GitHub Actions, or API-token deployment. Both people and
-  agents deploy from a local clone through `yarn manage`.
+  deploy buttons, or API-token deployment. The repository-owned manual GitHub
+  Actions workflow may create a collision-checked site or update an existing
+  site from a trusted ref with fresh device authorization on every run. It must
+  call `yarn manage`, keep Wrangler and microfeed state ephemeral, and log out
+  after the run.
 - Treat `docs/manage-cli.md` as the canonical command, option, side-effect, and
   safety reference for both people and agents. Read the relevant command
   section before using an unfamiliar or destructive option. Keep that reference

@@ -4,9 +4,10 @@ import {
   type WebhookEventType,
   webhookSubjectType,
 } from "@/shared/Webhooks";
+import {managementCommand} from "@/shared/ManagementCli";
 import {WebhookRequestError, WebhookUnavailableError} from "./validation";
 
-export type WebhookOrigin = "api" | "dashboard" | "system";
+export type WebhookOrigin = "api" | "dashboard" | "system" | "webmcp";
 
 export interface WebhookEventContext {
   causationId?: string;
@@ -571,7 +572,7 @@ export async function createWebhookTestDelivery(
 ): Promise<{deliveryId: string; eventId: string; suppressed?: string}> {
   if (!webhooksAvailable(runtimeEnv)) {
     throw new WebhookUnavailableError(
-      "Enable webhooks with yarn manage deploy --enable-webhooks first.",
+      `Enable webhooks with ${managementCommand("deploy --enable-webhooks")} first.`,
     );
   }
   const endpoint = await endpointForDirectDelivery(
@@ -610,7 +611,7 @@ export async function createWebhookExplorerDelivery(
 ): Promise<{deliveryId: string; eventId: string; suppressed?: string}> {
   if (!webhooksAvailable(runtimeEnv)) {
     throw new WebhookUnavailableError(
-      "Enable webhooks with yarn manage deploy --enable-webhooks first.",
+      `Enable webhooks with ${managementCommand("deploy --enable-webhooks")} first.`,
     );
   }
   const endpoint = await endpointForDirectDelivery(

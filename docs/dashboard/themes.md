@@ -59,7 +59,7 @@ packages and versions you trust.
 The Themes screen separates the catalog into two tabs:
 
 - **Built-in themes** groups versions by their `microfeed.*` package lineage.
-  The current checkout release appears first, and preserved older releases are
+  The current microfeed release appears first, and preserved older releases are
   available under **Version history**. Deployment synchronizes these packages,
   so Admin never offers a Delete action for them.
 - **Custom themes** contains Admin-created, GitHub, local-directory, and
@@ -120,7 +120,7 @@ CSS.
 ### Preview, activate, roll back, or delete
 
 Use **Preview** before activating any installed version. Activation records the
-previous version so an operator can roll back with `yarn manage theme rollback`
+previous version so an operator can roll back with `npx @microfeed/cli manage theme rollback`
 if the new design causes a problem. Delete only inactive Custom versions that
 are no longer needed; the active version and every Built-in version are
 protected from manual deletion.
@@ -137,10 +137,12 @@ An environment can keep up to 100 non-deleted Custom versions and 20 drafts.
 Built-in versions do not consume this quota. If a limit is full, delete an
 unused inactive Custom version or draft and retry.
 
-Repository-installed themes are managed from the connected clone with `yarn
-manage theme`. The [Build and release a theme](/themes/) guide covers creating,
-exporting, validating, installing, updating, and rolling back standalone theme
-packages.
+Use `npx @microfeed/cli manage theme` from any folder to install and manage
+repository-hosted themes. If you are already working in a Git-cloned microfeed
+source repository whose dependencies are installed, `yarn manage theme` is a
+shortcut to its local management version. The [Build and release a
+theme](/themes/) guide covers creating, exporting, validating, installing,
+updating, and rolling back standalone theme packages.
 
 ## Pages and Search compatibility
 

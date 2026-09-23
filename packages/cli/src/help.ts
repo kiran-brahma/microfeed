@@ -1,5 +1,33 @@
 import {CliError} from "./errors.js";
 
+export const GLOBAL_CLI_INVOCATION = "microfeed";
+export const NPX_CLI_INVOCATION = "npx @microfeed/cli";
+export const YARN_CLI_INVOCATION = "yarn microfeed";
+
+export type CliInvocation =
+  | typeof GLOBAL_CLI_INVOCATION
+  | typeof NPX_CLI_INVOCATION
+  | typeof YARN_CLI_INVOCATION;
+
+type CliInvocationEnvironment = Readonly<Record<string, string | undefined>>;
+
+export function detectCliInvocation(
+  environment: CliInvocationEnvironment = process.env,
+): CliInvocation {
+  const npmExecutable = environment.npm_execpath ?? "";
+  if (environment.npm_lifecycle_event === "npx" ||
+      (environment.npm_command === "exec" &&
+        /(?:^|[/\\])(?:npm|npx)-cli\.js$/u.test(npmExecutable))) {
+    return NPX_CLI_INVOCATION;
+  }
+  const packageManager = environment.npm_config_user_agent ?? "";
+  if (/^yarn\//u.test(packageManager) ||
+      /(?:^|[/\\])yarn(?:-[^/\\]+)?(?:\.c?js)?$/u.test(npmExecutable)) {
+    return YARN_CLI_INVOCATION;
+  }
+  return GLOBAL_CLI_INVOCATION;
+}
+
 export interface CliHelpOption {
   description: string;
   syntax: string;
@@ -61,7 +89,7 @@ const itemInputOptions = [
     "--status <status>",
     "Set published, unlisted, or unpublished.",
   ),
-  option("--url <url>", "Set the canonical absolute item URL."),
+  option("--url <url>", "Set the feed Link and canonical item URL."),
   option(
     "--input <file|->",
     "Read the complete JSON object from a UTF-8 file, or from stdin with -. Do not combine with item flags.",
@@ -69,6 +97,27 @@ const itemInputOptions = [
 ] as const;
 
 export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
+  {
+    details: [
+      "Copies the exact microfeed release bundled with @microfeed/cli into a private, persistent cache and runs its repository-owned management CLI. It never checks out source into the current project.",
+      "The published launcher includes its own Yarn runtime, so ordinary deployment requires Node.js and npm but not Git or Corepack. Its first run installs the locked application dependencies, and the workspace may consume about 1.3 GB; later runs reuse it.",
+      "Windows requires the x64 build of Node.js. Windows ARM computers run it through x64 application emulation because Cloudflare's local runtime does not provide a native Windows ARM64 executable.",
+      "A bare manage command prepares the workspace and prints exact instructions for a local coding agent. Pass any management command and options after manage to forward them unchanged, including --instance and --json.",
+      "Deployment state is stored separately from the replaceable source cache. Existing sites that are not yet saved can be discovered and connected through the guarded management workflow.",
+      "Use only from a local interactive session that can complete Cloudflare browser authorization. Never paste a Cloudflare token, dashboard password, or private password-setup link into a command or agent conversation.",
+    ],
+    examples: [
+      "npx @microfeed/cli manage",
+      "npx @microfeed/cli manage accounts --json",
+      "npx @microfeed/cli manage init",
+      "npx @microfeed/cli manage deploy --instance personal",
+      "npx @microfeed/cli manage status --instance personal",
+    ],
+    options: [],
+    path: ["manage"],
+    summary: "Deploy and administer microfeed on Cloudflare without a user-managed clone.",
+    usage: "npx @microfeed/cli manage [command] [arguments] [options]",
+  },
   {
     details: [
       "Starts a development-only HTTP listener on 127.0.0.1:8978/webhook. It verifies Standard Webhooks signatures against the exact request bytes before printing or forwarding an event.",
@@ -177,7 +226,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       "<computer-name> identifies this computer under Account settings → App access, such as Home Mac or Publishing server. It is separate from the local saved-instance name and accepts 1–64 printable characters.",
       "The CLI creates a random connection ID for this saved site. Logging in again reuses that ID, replaces its token family, and avoids adding a duplicate computer connection.",
       "Login verifies the microfeed site, opens administrator sign-in and consent in a browser, and stores only encrypted credentials. The person using the instance must approve the browser step.",
-      "Browser authorization requires the site's built-in login. Cloudflare Access may protect dashboard routes, but it does not create the microfeed application session required for OAuth. When built-in login is disabled, the owner enables it from the connected repository with `yarn manage auth setup`.",
+      "Browser authorization requires the site's built-in login. Cloudflare Access may protect dashboard routes, but it does not create the microfeed application session required for OAuth. When built-in login is disabled, the owner enables it with `npx @microfeed/cli manage auth setup`.",
       "Browser login can be saved while API access is disabled, but content commands return 404 until the site owner enables access.",
       ...apiAccessDetails,
     ],
@@ -417,7 +466,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
     details: [
       "Creates an item with POST /api/v1/items/ on the selected instance.",
-      "Choose exactly one input form: common item flags, or --input with a JSON object. Use JSON input for fields not represented by common flags.",
+      "Choose exactly one input form: common item flags, or --input with a JSON object. Use JSON input for _microfeed.seo, _microfeed.authors, _microfeed.slug, and language. Omitted fields stay unchanged; null clears metadata overrides. Slug conflicts return 409.",
       "Use --attachment-file for the one main media attachment exported as JSON Feed attachments[0] and the RSS enclosure. Supported files: mp3, m4b, flac, mp4, pdf, doc, docx, xlsx, ppt, pptx, txt, avif, gif, heic, jpeg, jpg, png, webp, and cr2.",
       "A new item must exist before its media attachment can be prepared. The CLI creates the item, uploads the file, then updates the item. If either later step fails, it reports the created item ID so the partial result can be recovered.",
       "Use --image-file only for item cover art or a thumbnail. It does not create a JSON Feed attachment or RSS enclosure.",
@@ -464,7 +513,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     details: [
       "Updates PUT /api/v1/items/{item-id}/ on the selected instance.",
       "<item-id> is the exact stable ID returned by `item list` or `item get`, for example 0HGJLSML3P1.",
-      "Choose exactly one input form: common item flags, or --input with a JSON object. Use JSON input for fields not represented by common flags.",
+      "Choose exactly one input form: common item flags, or --input with a JSON object. Use JSON input for _microfeed.seo, _microfeed.authors, _microfeed.slug, and language. Omitted fields stay unchanged; null clears metadata overrides. Slug conflicts return 409.",
       "Use --attachment-file for a local main media attachment. The CLI infers audio, video, document, or image category and MIME type from the extension, records the file size, and replaces any existing attachment.",
       "Use --image-file for local cover art or a thumbnail, and --image only for cover art already hosted at an absolute URL. Neither option changes the media attachment or RSS enclosure.",
       ...apiAccessDetails,
@@ -607,23 +656,41 @@ function alignedLines(
 }
 
 function referenceUrl(path?: readonly string[]): string {
+  if (path?.length === 1 && path[0] === "manage") {
+    return "https://docs.microfeed.org/microfeed-cli/#deploy-or-administer-a-site";
+  }
   const anchor = path?.length ? `#yarn-microfeed-${path.join("-")}` : "";
   return `https://docs.microfeed.org/microfeed-cli/${anchor}`;
 }
 
-export function renderCliHelp(path?: readonly string[]): string {
+function renderInvocation(
+  lines: string[],
+  invocation: CliInvocation,
+): string {
+  return lines.map((line) =>
+    line.replace(
+      /yarn microfeed|npx @microfeed\/cli/gu,
+      invocation,
+    )
+  ).join("\n");
+}
+
+export function renderCliHelp(
+  path?: readonly string[],
+  invocation = detectCliInvocation(),
+): string {
   if (path?.length) {
     const topic = helpTopic(path);
     if (!topic) {
       throw new CliError(
-        `Unknown help topic: ${topicKey(path)}. Run \`yarn microfeed help\` to list commands.`,
+        `Unknown help topic: ${topicKey(path)}. Run \`${invocation} help\` to list commands.`,
       );
     }
     const subcommands = topic.subcommands?.map(({description, name}) => ({
       description,
       syntax: name,
     })) ?? [];
-    return [
+    return renderInvocation([
       topic.usage,
       "",
       topic.summary,
@@ -642,10 +709,11 @@ export function renderCliHelp(path?: readonly string[]): string {
       "",
       `Complete reference: ${referenceUrl(topic.path)}`,
       "",
-    ].join("\n");
+    ], invocation);
   }
 
   const commands = [
+    {syntax: "manage", description: "Deploy or administer microfeed without cloning it yourself."},
     {syntax: "login <site-url>", description: "Authorize a site and save it as an instance."},
     {syntax: "logout", description: "Revoke this computer's tokens and remove its saved instance."},
     {syntax: "instances", description: "List, select, or locally remove saved instances."},
@@ -653,8 +721,8 @@ export function renderCliHelp(path?: readonly string[]): string {
     {syntax: "media", description: "Upload standalone media for rich content or later API use."},
     {syntax: "api", description: "Call one relative /api/v1/ REST operation."},
   ];
-  return [
-    "microfeed — manage content on a microfeed instance",
+  return renderInvocation([
+    "microfeed — deploy sites and manage their content",
     "",
     "Usage:",
     "  yarn microfeed <command> [arguments] [options]",
@@ -706,5 +774,5 @@ export function renderCliHelp(path?: readonly string[]): string {
     "",
     `Complete reference: ${referenceUrl()}`,
     "",
-  ].join("\n");
+  ], invocation);
 }

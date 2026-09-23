@@ -16,7 +16,11 @@ why the change is useful, and leave the project easier to maintain.
 ## Set up local development
 
 Use Node.js 24 and Corepack. The package supports Node.js `>=22.12.0`, but
-development and CI use Node.js 24 without pinning a patch release.
+development and CI use Node.js 24 without pinning a patch release. Windows ARM
+computers are supported through Windows' x64 application emulation: install
+the x64 build of Node.js because Cloudflare's local runtime does not provide a
+native Windows ARM64 executable. Confirm the active build with
+`node -p "process.arch"`; it must print `x64`.
 
 ```console
 corepack enable
@@ -86,19 +90,19 @@ secrets.
 
 ## Prepare release metadata
 
-Set the application, published CLI, theme kit, bundled default theme, and
-compatible starter range with one command:
+Set the application, published CLI, theme kit, and compatible starter range
+with one command:
 
 ```console
 yarn version:set 1.2.3
-yarn theme:release
 ```
 
 Use an exact semantic version. The command verifies every target before it
-writes anything. `yarn theme:release` records the bundled theme's immutable
-canonical checksum and refuses to replace any released version. Private
-workspace metadata, examples, fixtures, tests, and the lockfile do not need
-patch-release edits.
+writes anything. Bundled themes have their own immutable versions; when a
+bundled theme changes, increment that theme's version and run
+`yarn theme:release` to record its canonical checksum. Private workspace
+metadata, examples, fixtures, tests, and the lockfile do not need patch-release
+edits.
 
 ## Open a pull request
 

@@ -1,6 +1,8 @@
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {describe, expect, it} from "vitest";
+import Mustache from "mustache";
+import {MICROFEED_VERSION} from "@/shared/Version";
 
 const root = path.resolve(import.meta.dirname, "../..");
 
@@ -9,6 +11,19 @@ function occurrences(value: string, needle: string): number {
 }
 
 describe("bundled theme packages", () => {
+  it("renders configured attribution in the Default theme and generic starter", async () => {
+    for (const directory of ["themes/default", "packages/theme-kit/assets/starter"]) {
+      const template = await readFile(path.join(root, directory, "web-item.mustache"), "utf8");
+      const rendered = Mustache.render(template, {items: [{title: "Article", authors: [
+        {name: "Writer <one>", url: "https://example.com/writer/"}, {name: "Writer two"},
+      ]}]});
+      expect(rendered).toContain('rel="author"');
+      expect(rendered).toContain("Writer &lt;one&gt;");
+      expect(rendered).toContain("Writer two");
+      expect(Mustache.render(template, {items: [{title: "Article"}]})).not.toContain('aria-label="Authors"');
+    }
+  });
+
   it("keeps default design tokens readable before compiled Tailwind output", async () => {
     const header = await readFile(path.join(root, "themes/default/web-header.mustache"), "utf8");
     expect(header.indexOf('id="microfeed-design-tokens"')).toBe(7);
@@ -191,7 +206,7 @@ describe("bundled theme packages", () => {
       formatVersion: 2,
       packageId: "microfeed.default",
       previewFixture: "fixtures/editorial.json",
-      version: "1.1.16",
+      version: "1.1.17",
     });
     expect(fixture.items[0]).toMatchObject({
       _microfeed: {is_audio: true},
@@ -235,7 +250,7 @@ describe("bundled theme packages", () => {
       expect(url).toMatch(/^https:\/\/upload\.wikimedia\.org\//u);
       expect(url).not.toContain("example.test");
     }
-    expect(application.version).toBe("1.0.5");
+    expect(application.version).toBe(MICROFEED_VERSION);
   });
 
   it("renders subscription methods without broken or duplicated image text", async () => {
