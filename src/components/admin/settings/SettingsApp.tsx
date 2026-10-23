@@ -5,6 +5,7 @@ import AccessSettingsApp from "./AccessSettingsApp";
 import SubscribeSettingsApp from "./SubscribeSettingsApp";
 import CustomCodeSettingsApp from "./CustomCodeSettingsApp";
 import FaviconSettingsApp from "./FaviconSettingsApp";
+import AiSettingsApp from "./AiSettingsApp";
 import ItemsSettingsApp, {
   ITEMS_PER_PAGE_SUBMIT_KEY,
 } from "./ItemsSettingsApp";
@@ -202,6 +203,9 @@ export default class SettingsApp extends React.Component<Props, any> {
             onSubmit={this.onSubmit}
             onSettingsChanged={this.updateSettingsState}
           />
+        </section>
+        <section className="scroll-mt-6" id="ai-assistant">
+          <AiSettingsApp />
         </section>
         <div aria-hidden="true" className="h-[50vh]" />
       </div>

@@ -1,5 +1,6 @@
 import React, {useEffect, useId, useRef, useState} from "react";
-import {EllipsisVerticalIcon, Globe2Icon} from "lucide-react";
+import axios from "axios";
+import {EllipsisVerticalIcon, Globe2Icon, SparklesIcon} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Field, FieldDescription, FieldLabel} from "@/components/ui/field";
 import {Input} from "@/components/ui/input";
@@ -17,6 +18,8 @@ import {showToast} from "@/client/ToastUtils";
 import {scrollExpandedAdminSectionIntoView} from "@/client/AdminSectionScroll";
 import {canonicalItemLink, defaultSeoDescription} from "@/shared/Seo";
 import {resolveEffectiveFavicon} from "@/shared/Favicon";
+import {ADMIN_URLS} from "@/shared/StringUtils";
+import {AI_SEO_MAX_LENGTH, AI_SEO_MIN_LENGTH, type AiSeoDescriptionResult} from "@/shared/AiSettings";
 import type {Identity} from "@/shared/Seo";
 
 interface Props {
@@ -44,6 +47,7 @@ export default function SeoEditor({value, channel, itemId, feed, publicBucketUrl
   const [profiles, setProfiles] = useState<string | undefined>();
   const [applying, setApplying] = useState(false);
   const [slugError, setSlugError] = useState("");
+  const [generating, setGenerating] = useState(false);
   const [failedFaviconUrl, setFailedFaviconUrl] = useState<string>();
   const seo = value.seo ?? {};
   const isItem = Boolean(itemId);
@@ -71,6 +75,19 @@ export default function SeoEditor({value, channel, itemId, feed, publicBucketUrl
     : "No image set. The social preview will use text only.";
   const authors: Identity[] = value.authorIdentities ?? [];
   const inheritedAuthors: Identity[] = channel?.authorIdentities ?? [];
+  const generateDescription = async () => {
+    setGenerating(true);
+    try {
+      const {data} = await axios.post<AiSeoDescriptionResult>(ADMIN_URLS.ajaxAiSeoDescription(), {
+        title: value.title || "",
+        content: htmlToPlainText(value.description || ""),
+      });
+      setSeo("description", data.description);
+      showToast(`Description drafted (${data.length} characters). Review it before saving.`, "success");
+    } catch (cause: any) {
+      showToast(cause?.response?.data?.error ?? "Could not generate a description.", "error", 6000);
+    } finally { setGenerating(false); }
+  };
   const field = (key: SeoHelpField, input: React.ReactNode, hint?: React.ReactNode) => (
     <Field className="min-w-0">
       <FieldLabel className="sr-only" htmlFor={`${id}-${key}`}>{help[key].linkName}</FieldLabel>
@@ -101,6 +118,12 @@ export default function SeoEditor({value, channel, itemId, feed, publicBucketUrl
               aria-describedby={`${id}-description-hint`}
               placeholder={fallbackDescription} onChange={(event) => setSeo("description", event.target.value)} />,
             `${Array.from(description).length} characters · Around 160 recommended`)}
+            <div className="-mt-2 flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={generating} onClick={() => void generateDescription()}>
+                <SparklesIcon aria-hidden="true" />{generating ? "Generating…" : "Generate with AI"}
+              </Button>
+              <span className="text-xs text-muted-foreground">Drafts {AI_SEO_MIN_LENGTH}–{AI_SEO_MAX_LENGTH} characters from this content. Set up in Settings → AI assistant.</span>
+            </div>
             {isItem && <div className="space-y-5">
               <div className="space-y-3">
                 {field("slug", <div className="flex flex-wrap gap-2">

@@ -64,6 +64,10 @@ export const SNAPSHOT_TABLES = {
     "auth_rate_limit",
     "auth_password_setup",
     "theme_management_tokens",
+    // The AI assistant key is encrypted with a secret derived from the
+    // deployment's BETTER_AUTH_SECRET, so it cannot cross a snapshot boundary;
+    // operators re-enter the connection on the restored site.
+    "ai_settings",
     // Webhook endpoint secrets are encrypted with a deployment-specific key.
     // Endpoint configuration, delivery history, and the account-specific cost
     // guard therefore do not cross a snapshot boundary; operators recreate

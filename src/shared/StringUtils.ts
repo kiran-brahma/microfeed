@@ -465,6 +465,9 @@ export const ADMIN_URLS = {
   ajaxResetSiteFile: (id: string) =>
     adminUrl(`ajax/site-files/${id}/reset`, browserAdminPath()),
   ajaxR2Ops: () => adminUrl("ajax/r2-ops", browserAdminPath()),
+  ajaxAiSettings: () => adminUrl("ajax/ai/settings", browserAdminPath()),
+  ajaxAiSeoDescription: () =>
+    adminUrl("ajax/ai/seo-description", browserAdminPath()),
   ajaxApiSettings: () => adminUrl("ajax/api/settings", browserAdminPath()),
   ajaxApiKeys: () => adminUrl("ajax/api/keys", browserAdminPath()),
   ajaxApiKey: (id: string) =>

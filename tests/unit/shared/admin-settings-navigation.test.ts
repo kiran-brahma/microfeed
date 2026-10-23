@@ -15,6 +15,7 @@ describe("admin settings navigation", () => {
       ["media-file-storage", "Media file storage", "storage"],
       ["items-settings", "Items settings", "list"],
       ["favicon", "Favicon", "image"],
+      ["ai-assistant", "AI assistant", "sparkles"],
     ]);
   });
 

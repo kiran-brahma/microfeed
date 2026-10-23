@@ -121,6 +121,13 @@ these features when updating from upstream. The plan lives in
   under `[adminPath]/media-library/`. The item editor can reuse a library
   image as a cover or attachment. Images are cropped 1:1 and converted to
   AVIF client-side (`canvas.toBlob('image/avif')`) with PNG fallback.
+- **AI assistant** — Ollama Cloud connection stored in `ai_settings`
+  (migration `0025`), edited under Settings → AI assistant. The API key is
+  AES-GCM encrypted (key derived from `BETTER_AUTH_SECRET`) and never sent to
+  the browser. Server code in `src/server/ai/`; handlers in
+  `src/server/admin/ai-handlers.ts`; the SEO / GEO editor's "Generate with AI"
+  button drafts a 120–140 character description. Test:
+  `tests/worker/ai-settings.test.ts`.
 - **Personal theme** — a new theme package at `themes/personal/`
   (`personal.minimal`). Clean, minimal, writing-first; keeps podcast support;
   renders categories, series, and the contact form. The bundled default theme
@@ -129,7 +136,8 @@ these features when updating from upstream. The plan lives in
 When a future AI session updates this repository from upstream, it must keep
 all of the above intact and re-run the related tests
 (`tests/worker/categories.test.ts`, `tests/worker/series.test.ts`,
-`tests/worker/contact-messages.test.ts`, `tests/worker/media-library.test.ts`)
+`tests/worker/contact-messages.test.ts`, `tests/worker/media-library.test.ts`,
+`tests/worker/ai-settings.test.ts`)
 and the `themes/personal/` validate/test.
 
 ## Theme repositories

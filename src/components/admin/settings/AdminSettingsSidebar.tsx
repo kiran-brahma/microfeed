@@ -9,6 +9,7 @@ import {
   RssIcon,
   SearchIcon,
   ShieldCheckIcon,
+  SparklesIcon,
 } from "lucide-react";
 
 import {Input} from "@/components/ui/input";
@@ -33,6 +34,7 @@ const sectionIcons: Record<AdminSettingsSection["icon"], typeof ActivityIcon> = 
   list: ListFilterIcon,
   rss: RssIcon,
   shield: ShieldCheckIcon,
+  sparkles: SparklesIcon,
   storage: HardDriveIcon,
 };
 
