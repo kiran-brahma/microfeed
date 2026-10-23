@@ -43,11 +43,21 @@ async function chat(
         "content-type": "application/json",
       },
       method: "POST",
-      redirect: "error",
+      // Workers does not support "error"; refuse redirects below so the key never follows one.
+      redirect: "manual",
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-  } catch {
-    throw new AiUnavailableError("Could not reach the AI service. Check the address and try again.");
+  } catch (error) {
+    const reason = error instanceof Error && error.name === "TimeoutError"
+      ? `no answer within ${REQUEST_TIMEOUT_MS / 1000} seconds`
+      : error instanceof Error ? error.message : "unknown error";
+    console.error("AI request failed", connection.baseUrl, reason);
+    throw new AiUnavailableError(
+      `Could not reach ${new URL(connection.baseUrl).host} (${reason}). Check the address in Settings → AI assistant.`,
+    );
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw new AiUnavailableError("The AI service redirected the request. Use its final address in Settings → AI assistant.");
   }
   if (response.status === 401 || response.status === 403) {
     throw new AiUnavailableError("The AI service rejected the API key. Update it in Settings → AI assistant.");

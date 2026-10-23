@@ -103,3 +103,21 @@ describe("SEO description generation", () => {
       .rejects.toThrow(/rejected the API key/u);
   });
 });
+
+describe("AI request failures", () => {
+  it("refuses to follow a redirect with the key", async () => {
+    const fetcher = (async () => new Response(null, {headers: {location: "https://evil.example"}, status: 302})) as unknown as typeof fetch;
+    await expect(generateSeoDescription(
+      {apiKey: KEY, baseUrl: "https://ollama.com", extraInstructions: "", model: "m"},
+      {content: "c", title: "t"}, fetcher,
+    )).rejects.toThrow(/redirected the request/u);
+  });
+
+  it("names the host and the underlying reason when the request cannot be sent", async () => {
+    const fetcher = (async () => { throw new TypeError("redirect mode is set to error"); }) as unknown as typeof fetch;
+    await expect(generateSeoDescription(
+      {apiKey: KEY, baseUrl: "https://ollama.com", extraInstructions: "", model: "m"},
+      {content: "c", title: "t"}, fetcher,
+    )).rejects.toThrow(/ollama\.com.*redirect mode is set to error/u);
+  });
+});
