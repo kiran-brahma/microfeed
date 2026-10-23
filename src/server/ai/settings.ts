@@ -2,7 +2,9 @@ import {decryptWebhookSecret, encryptWebhookSecret} from "@/server/webhooks/cryp
 import {
   AI_DEFAULT_BASE_URL,
   AI_DEFAULT_MODEL,
+  AI_MAX_API_KEY_LENGTH,
   AI_MAX_EXTRA_INSTRUCTIONS,
+  AI_MAX_MODEL_LENGTH,
   type AiSettingsInput,
   type AiSettingsView,
 } from "@/shared/AiSettings";
@@ -19,8 +21,8 @@ interface AiRow extends Record<string, unknown> {
 }
 
 /**
- * Domain-separated from the secret that signs sessions, so the stored AI key
- * cannot be decrypted by anything that merely knows another derived value.
+ * The prefix only keeps this key distinct from other values derived from
+ * BETTER_AUTH_SECRET; anyone who knows that secret can still derive it.
  * Rotating BETTER_AUTH_SECRET makes the saved key unreadable; re-enter it.
  */
 function encryptionSecret(runtimeEnv: Env): string {
@@ -76,7 +78,7 @@ export async function saveAiSettings(
     input.baseUrl ?? row?.base_url ?? AI_DEFAULT_BASE_URL,
   );
   const model = (input.model ?? row?.model ?? AI_DEFAULT_MODEL).trim();
-  if (!model || model.length > 200 || /\s/u.test(model)) {
+  if (!model || model.length > AI_MAX_MODEL_LENGTH || /\s/u.test(model)) {
     throw new AiRequestError("Enter a model name such as gpt-oss:120b.");
   }
   const extraInstructions = (input.extraInstructions ??
@@ -95,7 +97,7 @@ export async function saveAiSettings(
       ciphertext = null;
       hint = null;
     } else {
-      if (apiKey.length > 500 || /\s/u.test(apiKey)) {
+      if (apiKey.length > AI_MAX_API_KEY_LENGTH || /\s/u.test(apiKey)) {
         throw new AiRequestError("That does not look like a valid API key.");
       }
       ciphertext = await encryptWebhookSecret(apiKey, encryptionSecret(runtimeEnv));

@@ -83,8 +83,7 @@ export default function SeoEditor({value, channel, itemId, feed, publicBucketUrl
         content: htmlToPlainText(value.description || ""),
       });
       setSeo("description", data.description);
-      if (data.withinRange) showToast(`Description drafted (${data.length} characters). Review it before saving.`, "success");
-      else showToast(`Drafted ${data.length} characters, outside the ${AI_SEO_MIN_LENGTH}–${AI_SEO_MAX_LENGTH} target. Edit it or try again.`, "error", 6000);
+      showToast(`Description drafted (${data.length} characters). Review it before saving.`, "success");
     } catch (cause: any) {
       showToast(cause?.response?.data?.error ?? "Could not generate a description.", "error", 6000);
     } finally { setGenerating(false); }

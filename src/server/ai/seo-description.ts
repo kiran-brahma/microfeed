@@ -1,11 +1,14 @@
 import {
+  AI_MAX_TITLE_CHARACTERS,
   AI_SEO_MAX_LENGTH,
   AI_SEO_MAX_SOURCE_CHARACTERS,
   AI_SEO_MIN_LENGTH,
+  AI_SEO_TARGET_LENGTH,
   type AiSeoDescriptionResult,
   characterLength,
   cleanGeneratedDescription,
   fitDescription,
+  isWithinSeoRange,
 } from "@/shared/AiSettings";
 import {AiRequestError, AiUnavailableError, type AiConnection} from "./settings";
 
@@ -74,7 +77,7 @@ export async function generateSeoDescription(
 ): Promise<AiSeoDescriptionResult> {
   const content = input.content.replace(/\s+/gu, " ").trim()
     .slice(0, AI_SEO_MAX_SOURCE_CHARACTERS);
-  const title = input.title.trim().slice(0, 300);
+  const title = input.title.trim().slice(0, AI_MAX_TITLE_CHARACTERS);
   if (!content && !title) {
     throw new AiRequestError("Add a title or some content first.");
   }
@@ -88,10 +91,9 @@ export async function generateSeoDescription(
       await chat(connection, messages, fetcher),
     );
     const length = characterLength(candidate);
-    if (length >= AI_SEO_MIN_LENGTH && length <= AI_SEO_MAX_LENGTH) {
-      return {description: candidate, length, withinRange: true};
-    }
-    if (!best || Math.abs(length - 130) < Math.abs(characterLength(best) - 130)) {
+    if (isWithinSeoRange(candidate)) return {description: candidate, length};
+    if (!best || Math.abs(length - AI_SEO_TARGET_LENGTH) <
+        Math.abs(characterLength(best) - AI_SEO_TARGET_LENGTH)) {
       best = candidate;
     }
     messages.push(
@@ -102,11 +104,12 @@ export async function generateSeoDescription(
       },
     );
   }
+  // Only an in-range answer is ever returned, so it cannot be saved by accident.
   const description = fitDescription(best);
-  const length = characterLength(description);
-  return {
-    description,
-    length,
-    withinRange: length >= AI_SEO_MIN_LENGTH && length <= AI_SEO_MAX_LENGTH,
-  };
+  if (!isWithinSeoRange(description)) {
+    throw new AiUnavailableError(
+      `The AI did not produce a ${AI_SEO_MIN_LENGTH}–${AI_SEO_MAX_LENGTH} character description. Try again.`,
+    );
+  }
+  return {description, length: characterLength(description)};
 }

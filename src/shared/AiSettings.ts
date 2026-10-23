@@ -26,7 +26,18 @@ export interface AiSettingsInput {
 export interface AiSeoDescriptionResult {
   description: string;
   length: number;
-  withinRange: boolean;
+}
+
+export const AI_SEO_TARGET_LENGTH = Math.round(
+  (AI_SEO_MIN_LENGTH + AI_SEO_MAX_LENGTH) / 2,
+);
+export const AI_MAX_API_KEY_LENGTH = 500;
+export const AI_MAX_MODEL_LENGTH = 200;
+export const AI_MAX_TITLE_CHARACTERS = 300;
+
+export function isWithinSeoRange(text: string): boolean {
+  const length = characterLength(text);
+  return length >= AI_SEO_MIN_LENGTH && length <= AI_SEO_MAX_LENGTH;
 }
 
 export function characterLength(text: string): number {
@@ -39,12 +50,15 @@ export function cleanGeneratedDescription(text: string): string {
     .replace(/^["'“‘`]+|["'”’`]+$/gu, "").trim();
 }
 
-/** Trim to the limit at a word boundary without exceeding it. */
+/**
+ * Trim to the limit, preferring a word boundary that keeps the text at or
+ * above the minimum so a trimmed answer can still be in range.
+ */
 export function fitDescription(text: string, max = AI_SEO_MAX_LENGTH): string {
   const characters = Array.from(text);
   if (characters.length <= max) return text;
   const clipped = characters.slice(0, max).join("");
   const boundary = clipped.search(/\s\S*$/u);
-  const base = boundary > max * 0.6 ? clipped.slice(0, boundary) : clipped;
+  const base = boundary >= AI_SEO_MIN_LENGTH ? clipped.slice(0, boundary) : clipped;
   return base.replace(/[\s,;:–—-]+$/u, "");
 }

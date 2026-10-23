@@ -136,7 +136,8 @@ these features when updating from upstream. The plan lives in
 When a future AI session updates this repository from upstream, it must keep
 all of the above intact and re-run the related tests
 (`tests/worker/categories.test.ts`, `tests/worker/series.test.ts`,
-`tests/worker/contact-messages.test.ts`, `tests/worker/media-library.test.ts`)
+`tests/worker/contact-messages.test.ts`, `tests/worker/media-library.test.ts`,
+`tests/worker/ai-settings.test.ts`)
 and the `themes/personal/` validate/test.
 
 ## Theme repositories

@@ -9,7 +9,7 @@ import {
   loadAiConnection,
   saveAiSettings,
 } from "@/server/ai/settings";
-import {characterLength, fitDescription} from "@/shared/AiSettings";
+import {characterLength} from "@/shared/AiSettings";
 
 const KEY = "ollama-test-key-abcd1234";
 
@@ -67,22 +67,34 @@ describe("SEO description generation", () => {
     expect(characterLength(good)).toBeGreaterThanOrEqual(120);
     const {fetcher, requests} = replies(`"${good}"`);
     const result = await generateSeoDescription(connection, {content: "<b>x</b> body", title: "T"}, fetcher);
-    expect(result).toMatchObject({description: good, withinRange: true});
+    expect(result).toMatchObject({description: good});
     expect(requests[0]!).toMatchObject({url: "https://ollama.com/api/chat"});
     expect(requests[0]!.headers.get("authorization")).toBe(`Bearer ${KEY}`);
     expect(requests[0]!.body.stream).toBe(false);
   });
 
-  it("retries when the length is off, then trims a stubborn overlong answer", async () => {
+  it("retries with a correction when the length is off", async () => {
     const retry = replies("Too short.", good);
-    expect((await generateSeoDescription(connection, {content: "c", title: "t"}, retry.fetcher)).withinRange).toBe(true);
+    const result = await generateSeoDescription(connection, {content: "c", title: "t"}, retry.fetcher);
+    expect(result.description).toBe(good);
     expect(retry.requests).toHaveLength(2);
+    const correction = retry.requests[1]!.body.messages.at(-1).content;
+    expect(correction).toMatch(/was 10 characters.*between 120 and 140/u);
+  });
 
+  it("trims a stubborn overlong answer into range", async () => {
     const long = replies(`${good} ${good}`);
-    const trimmed = await generateSeoDescription(connection, {content: "c", title: "t"}, long.fetcher);
+    const result = await generateSeoDescription(connection, {content: "c", title: "t"}, long.fetcher);
     expect(long.requests).toHaveLength(3);
-    expect(trimmed.length).toBeLessThanOrEqual(140);
-    expect(fitDescription(`${good} ${good}`)).toBe(trimmed.description);
+    expect(result.length).toBeGreaterThanOrEqual(120);
+    expect(result.length).toBeLessThanOrEqual(140);
+  });
+
+  it("refuses to return an answer that stays too short", async () => {
+    const short = replies("Far too short.");
+    await expect(generateSeoDescription(connection, {content: "c", title: "t"}, short.fetcher))
+      .rejects.toThrow(/did not produce a 120–140 character/u);
+    expect(short.requests).toHaveLength(3);
   });
 
   it("maps an authentication failure to a clear message", async () => {
